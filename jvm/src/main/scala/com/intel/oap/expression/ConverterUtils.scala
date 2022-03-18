@@ -703,6 +703,8 @@ object ConverterUtils extends Logging {
 
   // Function names used by Substrait plan.
   final val SUM = "sum"
+  final val AVG = "avg"
+  final val COUNT = "count"
   final val MULTIPLY = "multiply"
   final val AND = "and"
   final val OR = "or"
