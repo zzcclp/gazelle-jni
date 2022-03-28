@@ -41,7 +41,7 @@ object DSV2BenchmarkTest {
       val queryPath = resourcePath + "/queries/"
       //(new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
       //"/data1/gazelle-jni-warehouse")
-      ("/data1/test_output/tpch-data-sf10", "parquet", 100, false, queryPath + "q06.sql", "",
+      ("/data1/test_output/tpch-data-sf10", "parquet", 1, false, queryPath + "q06.sql", "",
         true, "/data1/gazelle-jni-warehouse")
     }
 
@@ -98,7 +98,7 @@ object DSV2BenchmarkTest {
         //.config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         //.config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
         .config("spark.oap.sql.columnar.columnartorow", "false")
-        .config(GazelleJniConfig.OAP_LOAD_NATIVE, "true")
+        .config(GazelleJniConfig.OAP_LOAD_NATIVE, "false")
         .config(GazelleJniConfig.OAP_LOAD_ARROW, "false")
         // /home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-MergeTree/cmake-build-release/utils/local-engine/liblocal_engine_jni.so
         // /home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse/cmake-build-release/utils/local-engine/liblocal_engine_jni.so
@@ -111,6 +111,7 @@ object DSV2BenchmarkTest {
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "6442450944")
+        .config("spark.shuffle.sort.bypassMergeThreshold", "1")
 
       if (!warehouse.isEmpty) {
         sessionBuilderTmp1.config("spark.sql.warehouse.dir", warehouse)
@@ -139,7 +140,7 @@ object DSV2BenchmarkTest {
     }
     selectClickHouseTable(spark, executedCnt, sqlStr.mkString)
     //selectLocationClickHouseTable(spark, executedCnt, sqlStr.mkString)
-    testSerializeFromObjectExec(spark)
+    //testSerializeFromObjectExec(spark)
 
     System.out.println("waiting for finishing")
     if (stopFlagFile.isEmpty) {
@@ -310,12 +311,12 @@ object DSV2BenchmarkTest {
       tookTimeArr += tookTime
     }
 
-    println(tookTimeArr.mkString(","))
+    /*println(tookTimeArr.mkString(","))
 
     // spark.conf.set("spark.oap.sql.enable.native.engine", "false")
     import spark.implicits._
     val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
-    df.summary().show(100, false)
+    df.summary().show(100, false)*/
   }
 
   def selectLocationClickHouseTable(spark: SparkSession, executedCnt: Int,
