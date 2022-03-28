@@ -20,15 +20,18 @@ package com.intel.oap.execution
 import java.io._
 
 import com.intel.oap.GazelleJniConfig
-import com.intel.oap.row.RowIterator
-import com.intel.oap.vectorized.ExpressionEvaluator
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.Encoders
+import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder
 import org.apache.spark.util._
+
+case class ColumnarUnsafeRow(col1: Double, col2: String, col1Data: Array[Byte],
+                             col2Data: Array[Byte], col3Data: Array[Byte])
 
 class NativeWholestageRowRDD(
     sc: SparkContext,
@@ -55,7 +58,7 @@ class NativeWholestageRowRDD(
     case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
   }
 
-  override def compute(split: Partition, context: TaskContext): Iterator[InternalRow] = {
+  /*override def compute(split: Partition, context: TaskContext): Iterator[InternalRow] = {
     ExecutorManager.tryTaskSet(numaBindingInfo)
 
     val inputPartition = castNativePartition(split)
@@ -137,6 +140,51 @@ class NativeWholestageRowRDD(
           resIter.close()
         }
         logWarning(s"===========close ${System.nanoTime() - startTime}")
+      }
+    }
+    context.addTaskCompletionListener[Unit] { _ =>
+      iter.close()
+    }
+    iter
+  }*/
+
+  override def compute(split: Partition, context: TaskContext): Iterator[InternalRow] = {
+    ExecutorManager.tryTaskSet(numaBindingInfo)
+
+    val inputPartition = castNativePartition(split)
+
+    val columnarEncoder = Encoders.product[ColumnarUnsafeRow]
+    val columnarExprEncoder = columnarEncoder.asInstanceOf[ExpressionEncoder[ColumnarUnsafeRow]]
+    val res = Array.range(0, 10).map(i => {
+      columnarExprEncoder.createSerializer().apply(ColumnarUnsafeRow(1.0, "F",
+        // compressed columnar data
+        Array[Byte](192.toByte, 168.toByte, 1, 9),
+        Array[Byte](192.toByte, 168.toByte, 1, 10),
+        Array[Byte](192.toByte, 168.toByte, 1, 11)))
+      match {
+        case ur: UnsafeRow => {
+          println(ur)
+          ur
+        }
+      }
+    })
+    var resIter = res.iterator
+
+    val iter = new Iterator[InternalRow] with AutoCloseable {
+      private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
+
+      override def hasNext: Boolean = {
+        resIter.hasNext
+      }
+
+      override def next(): InternalRow = {
+        if (!hasNext) {
+          throw new java.util.NoSuchElementException("End of stream")
+        }
+        resIter.next()
+      }
+
+      override def close(): Unit = {
       }
     }
     context.addTaskCompletionListener[Unit] { _ =>
