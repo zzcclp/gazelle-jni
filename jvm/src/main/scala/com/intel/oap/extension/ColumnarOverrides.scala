@@ -24,6 +24,7 @@ import com.intel.oap.extension.columnar.{RowGuard, TransformGuardRule}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
@@ -35,6 +36,7 @@ import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, ArrowEvalPythonExecTransformer}
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.IntegerType
 
 case class TransformPreOverrides() extends Rule[SparkPlan] {
   val columnarConf: GazelleJniConfig = GazelleJniConfig.getSessionConf
@@ -138,7 +140,15 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
               child))
         }
       } else {
-        plan.withNewChildren(Seq(child))
+        if (plan.outputPartitioning.isInstanceOf[HashPartitioning]) {
+          val hashPartitioning = plan.outputPartitioning.asInstanceOf[HashPartitioning]
+          val numPartitions = hashPartitioning.numPartitions
+          ShuffleExchangeExec(
+            HashPartitioning(Seq(AttributeReference("virtualHash", IntegerType, nullable = true)()),
+              numPartitions), child)
+        } else {
+          plan.withNewChildren(Seq(child))
+        }
       }
     case plan: ShuffledHashJoinExec =>
       val left = replaceWithTransformerPlan(plan.left)

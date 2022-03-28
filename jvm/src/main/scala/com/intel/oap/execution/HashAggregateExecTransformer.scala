@@ -18,25 +18,26 @@
 package com.intel.oap.execution
 
 import scala.collection.mutable.ListBuffer
-import com.google.common.collect.Lists
+import scala.util.control.Breaks.{break, breakable}
+
 import com.intel.oap.expression._
 import com.intel.oap.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import com.intel.oap.substrait.rel.{RelBuilder, RelNode}
 import com.intel.oap.substrait.SubstraitContext
 import com.intel.oap.GazelleJniConfig
+import com.intel.oap.substrait.`type`.TypeNode
 import java.util
 
-import com.intel.oap.substrait.`type`.TypeNode
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.util.truncatedString
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import scala.util.control.Breaks.{break, breakable}
 
 /**
  * Columnar Based HashAggregateExec.
@@ -114,6 +115,13 @@ case class HashAggregateExecTransformer(
       c.columnarInputRDDs
     case _ =>
       Seq(child.executeColumnar())
+  }
+
+  override def rowInputRDDs: Seq[RDD[InternalRow]] = child match {
+    case c: TransformSupport =>
+      c.rowInputRDDs
+    case _ =>
+      Seq(child.execute())
   }
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = child match {

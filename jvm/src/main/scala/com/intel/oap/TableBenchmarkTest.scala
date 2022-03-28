@@ -39,7 +39,7 @@ object TableBenchmarkTest {
       val queryPath = resourcePath + "/queries/"
       //(new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
       //"/data1/gazelle-jni-warehouse")
-      ("/data1/test_output/tpch-data-sf10", "parquet", 1, false, queryPath + "q01.sql", "",
+      ("/data1/test_output/tpch-data-sf10", "parquet", 1, false, queryPath + "q06.sql", "",
         false, "/data1/gazelle-jni-warehouse")
     }
 

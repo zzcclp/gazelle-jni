@@ -63,6 +63,11 @@ trait TransformSupport extends SparkPlan {
    */
   def columnarInputRDDs: Seq[RDD[ColumnarBatch]]
 
+  def rowInputRDDs: Seq[RDD[InternalRow]] = {
+    throw new UnsupportedOperationException(
+      s"This operator doesn't support doTransform with SubstraitContext.")
+  }
+
   def getBuildPlans: Seq[(SparkPlan, SparkPlan)]
 
   def getStreamedLeafPlan: SparkPlan
@@ -262,6 +267,13 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       throw new UnsupportedOperationException
   }
 
+  override def rowInputRDDs: Seq[RDD[InternalRow]] = child match {
+    case c: TransformSupport =>
+      c.rowInputRDDs
+    case _ =>
+      throw new UnsupportedOperationException
+  }
+
   def checkBatchScanExecTransformerChild(): Option[BasicScanExecTransformer] = {
     var current_op = child
     while (current_op.isInstanceOf[TransformSupport] &&
@@ -332,6 +344,16 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val wsRDD = new NativeWholestageRowRDD(sparkContext, substraitPlanPartition, false)
       wsRDD
     } else {
+      val resCtx = doWholestageTransform()
+      val outputAttributes = resCtx.outputAttributes
+      val rootNode = resCtx.root
+      logWarning(s"============== final stage substrait plan: ${rootNode.toProtobuf.toString}")
+      val test = rowInputRDDs.head.mapPartitionsWithIndex((idx, itr) => {
+        itr.map(row => {
+          println(idx + " =========== " + row)
+          row.numFields
+        })
+      }).count()
       sparkContext.emptyRDD
     }
   }
