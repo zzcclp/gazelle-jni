@@ -34,18 +34,16 @@ ArrowExecBackend::~ArrowExecBackend() {
 #endif
 }
 
-std::shared_ptr<gluten::RecordBatchResultIterator>
-ArrowExecBackend::GetResultIterator() {
+std::shared_ptr<gluten::RecordBatchResultIterator> ArrowExecBackend::GetResultIterator() {
   return GetResultIterator({});
 }
 
-std::shared_ptr<gluten::RecordBatchResultIterator>
-ArrowExecBackend::GetResultIterator(
+std::shared_ptr<gluten::RecordBatchResultIterator> ArrowExecBackend::GetResultIterator(
     std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs) {
   GLUTEN_ASSIGN_OR_THROW(auto decls, arrow::engine::ConvertPlan(plan_));
   if (decls.size() != 1) {
     throw gluten::JniPendingException("Expected 1 decl, but got " +
-                                          std::to_string(decls.size()));
+                                      std::to_string(decls.size()));
   }
   decl_ = std::make_shared<arrow::compute::Declaration>(std::move(decls[0]));
 
@@ -55,8 +53,8 @@ ArrowExecBackend::GetResultIterator(
     for (auto i = 0; i < inputs.size(); ++i) {
       auto it = schema_map_.find(i);
       if (it == schema_map_.end()) {
-        throw gluten::JniPendingException(
-            "Schema not found for input batch iterator " + std::to_string(i));
+        throw gluten::JniPendingException("Schema not found for input batch iterator " +
+                                          std::to_string(i));
       }
       auto batch_it = MakeMapIterator(
           [](const std::shared_ptr<arrow::RecordBatch>& batch) {
@@ -97,7 +95,7 @@ ArrowExecBackend::GetResultIterator(
       arrow::compute::MakeGeneratorReader(std::move(output_schema), std::move(sink_gen),
                                           arrow::default_memory_pool());
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(sink_reader),
-                                                                 shared_from_this());
+                                                             shared_from_this());
 }
 
 void ArrowExecBackend::ReplaceSourceDecls(
