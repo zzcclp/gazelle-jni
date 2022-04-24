@@ -340,6 +340,15 @@ object ConverterUtils extends Logging {
     }
   }
 
+  def getShortAttributeName(attr: Attribute): String = {
+    val subIndex = attr.name.indexOf("(")
+    if (subIndex != -1) {
+      attr.name.substring(0, subIndex)
+    } else {
+      attr.name
+    }
+  }
+
   def getResultAttrFromExpr(
       fieldExpr: Expression,
       name: String = "None",

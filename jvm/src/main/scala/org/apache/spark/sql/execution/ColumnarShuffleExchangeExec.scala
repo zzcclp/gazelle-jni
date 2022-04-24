@@ -424,7 +424,7 @@ object ColumnarShuffleExchangeExec extends Logging {
             "hash",
             n,
             null,
-            fields.mkString(",").getBytes("UTF-8"))
+            fields.mkString(",").getBytes)
         }
       // range partitioning fall back to row-based partition id computation
       case RangePartitioning(orders, n) =>

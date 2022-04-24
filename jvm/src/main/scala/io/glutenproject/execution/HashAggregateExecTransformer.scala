@@ -19,11 +19,14 @@ package io.glutenproject.execution
 
 import scala.collection.mutable.ListBuffer
 import com.google.common.collect.Lists
+import scala.util.control.Breaks.{break, breakable}
+
 import io.glutenproject.expression._
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
+import io.glutenproject.substrait.`type`.TypeNode
 import java.util
 
 import com.google.protobuf.Any
@@ -40,8 +43,6 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import scala.util.control.Breaks.{break, breakable}
 
 /**
  * Columnar Based HashAggregateExec.
@@ -167,20 +168,46 @@ case class HashAggregateExecTransformer(
       case _ =>
         null
     }
-    val (relNode, inputAttributes) = if (childCtx != null) {
-      (getAggRel(context.registeredFunction, childCtx.root), childCtx.outputAttributes)
+    val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
+      val groupingAttributes = groupingExpressions.map(expr => {
+        ConverterUtils.getAttrFromExpr(expr).toAttribute
+      })
+      val outputAttrs = groupingAttributes ++ aggregateExpressions.map(expr => {
+        expr.resultAttribute
+      })
+      (getAggRel(context.registeredFunction, childCtx.root), childCtx.outputAttributes, outputAttrs)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute]()
+      /*val attrList = new util.ArrayList[Attribute]()
       for (attr <- child.output) {
         attrList.add(attr)
       }
-      val readRel = RelBuilder.makeReadRel(attrList, context)
+      val readRel = RelBuilder.makeReadRel(attrList, context)*/
+      val typeList = new util.ArrayList[TypeNode]()
+      val nameList = new util.ArrayList[String]()
+      /*for (attr <- child.output) {
+        typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        nameList.add(attr.name + "#" + attr.exprId.id)
+      }*/
+      val groupingAttributes = groupingExpressions.map(expr => {
+        ConverterUtils.getAttrFromExpr(expr).toAttribute
+      })
+      val outputAttrs = groupingAttributes ++ aggregateExpressions.map(expr => {
+        expr.resultAttribute
+      })
+      for (attr <- outputAttrs) {
+        typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        nameList.add(ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id)
+      }
+      val inputIter = LocalFilesBuilder.makeLocalFiles(
+        ConverterUtils.ITERATOR_PREFIX.concat(context.getIteratorIndex.toString))
+      context.setLocalFilesNode(inputIter)
+      val readRel = RelBuilder.makeReadRel(typeList, nameList, context)
 
-      (getAggRel(context.registeredFunction, readRel), child.output)
+      (getAggRel(context.registeredFunction, readRel), outputAttrs, output)
     }
-    TransformContext(inputAttributes, output, relNode)
+    TransformContext(inputAttributes, outputAttributes, relNode)
   }
 
   override def verboseString(maxFields: Int): String = toString(verbose = true, maxFields)
@@ -362,11 +389,14 @@ case class HashAggregateExecTransformer(
             aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
           })
         case Final =>
-          aggregatFunc.inputAggBufferAttributes.toList.map(attr => {
+          val aggTypesExpr: Expression = ExpressionConverter
+            .replaceWithExpressionTransformer(aggExpr.resultAttribute, originalInputAttributes)
+          Seq(aggTypesExpr.asInstanceOf[ExpressionTransformer].doTransform(args))
+          /*aggregatFunc.inputAggBufferAttributes.toList.map(attr => {
             val aggExpr: Expression = ExpressionConverter
               .replaceWithExpressionTransformer(attr, originalInputAttributes)
             aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-          })
+          })*/
         case other =>
           throw new UnsupportedOperationException(s"$other not supported.")
       }
@@ -400,7 +430,14 @@ case class HashAggregateExecTransformer(
     val aggRel = if (needsPreProjection) {
       getAggRelWithPreProjection(args, originalInputAttributes, input, validation)
     } else {
-      getAggRelWithoutPreProjection(args, originalInputAttributes, input, validation)
+      // getAggRelWithoutPreProjection(args, originalInputAttributes, input, validation)
+      val groupingAttributes = groupingExpressions.map(expr => {
+        ConverterUtils.getAttrFromExpr(expr).toAttribute
+      })
+      val outputAttrs = groupingAttributes ++ aggregateExpressions.map(expr => {
+        expr.resultAttribute
+      })
+      getAggRelWithoutPreProjection(args, outputAttrs, input, validation)
     }
     // Will check if post-projection is needed. If yes, a ProjectRel will be added after the
     // AggregateRel.

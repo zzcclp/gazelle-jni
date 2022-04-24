@@ -21,7 +21,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 import com.google.common.collect.Lists
-import io.glutenproject.vectorized.ColumnarFactory
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression._
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
@@ -40,7 +39,7 @@ import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils}
 
 case class TransformContext(inputAttributes: Seq[Attribute],
@@ -166,7 +165,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       }
     }
     for (attr <- childCtx.outputAttributes) {
-      outNames.add(attr.name)
+      outNames.add(ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id)
     }
     val planNode = PlanBuilder.makePlan(
       substraitContext, Lists.newArrayList(childCtx.root), outNames)
@@ -385,8 +384,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
             ExtensionTableBuilder.makeExtensionTable(p.minParts,
               p.maxParts, p.database, p.table, p.tablePath)
           wsCxt.substraitContext.setExtensionTableNode(extensionTableNode)
-//           logWarning(s"The substrait plan for partition " +
-//             s"${p.index}:\n${wsCxt.root.toProtobuf.toString}")
+          // logInfo(s"The substrait plan for partition " +
+          //   s"${p.index}:\n${wsCxt.root.toProtobuf.toString}")
           p.copySubstraitPlan(wsCxt.root.toProtobuf.toByteArray)
         case FilePartition(index, files) =>
           val paths = new java.util.ArrayList[String]()
@@ -426,6 +425,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val resCtx = doWholestageTransform()
       val outputAttributes = resCtx.outputAttributes
       val rootNode = resCtx.root
+      // logInfo(s"The substrait plan for final agg " +
+      //   s"\n${rootNode.toProtobuf.toString}")
 
       if (!GlutenConfig.getConf.isClickHouseBackend) {
         curRDD.mapPartitions { iter =>
