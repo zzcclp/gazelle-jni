@@ -201,6 +201,7 @@ object ExpressionConverter extends Logging {
             attributeSeq),
           expr)
       case expr =>
+        logWarning(s"${expr.getClass} or ${expr} is not currently supported.")
         throw new UnsupportedOperationException(
           s"${expr.getClass} or ${expr} is not currently supported.")
     }
@@ -238,6 +239,7 @@ object ExpressionConverter extends Logging {
       case b: BinaryExpression =>
         containsSubquery(b.left) || containsSubquery(b.right)
       case expr =>
+        logWarning(s" --> ${expr.getClass} | ${expr} is not currently supported.")
         throw new UnsupportedOperationException(
           s" --> ${expr.getClass} | ${expr} is not currently supported.")
     }

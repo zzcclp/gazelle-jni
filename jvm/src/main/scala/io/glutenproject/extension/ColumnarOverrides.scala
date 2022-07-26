@@ -230,9 +230,11 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
     case plan: RowToColumnarExec =>
-      val child = replaceWithTransformerPlan(plan.child)
-      logDebug(s"ColumnarPostOverrides RowToArrowColumnarExec(${child.getClass})")
-      BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
+      // val child = replaceWithTransformerPlan(plan.child)
+      // logDebug(s"ColumnarPostOverrides RowToArrowColumnarExec(${child.getClass})")
+      // BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
+      val children = plan.children.map(replaceWithTransformerPlan)
+      plan.withNewChildren(children)
     case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) =>
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: ColumnarBroadcastExchangeAdaptor) =>

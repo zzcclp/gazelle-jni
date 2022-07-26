@@ -17,8 +17,6 @@
 
 package io.glutenproject.execution
 
-import scala.collection.JavaConverters._
-import scala.util.control.Breaks.{break, breakable}
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, ByteString}
 import io.glutenproject.GlutenConfig
@@ -32,8 +30,6 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 import io.substrait.proto.JoinRel
-import java.{lang, util}
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -43,8 +39,12 @@ import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin, ShuffledJoin}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-import org.apache.spark.sql.types.{BooleanType, DataType, NullType}
+import org.apache.spark.sql.types.{BooleanType, DataType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import java.{lang, util}
+import scala.collection.JavaConverters._
+import scala.util.control.Breaks.{break, breakable}
 
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
@@ -552,7 +552,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
         buildPlan.output, substraitContext, substraitContext.nextOperatorId, validation = true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logWarning(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
         return false
     }
     // Then, validate the generated plan in native engine.

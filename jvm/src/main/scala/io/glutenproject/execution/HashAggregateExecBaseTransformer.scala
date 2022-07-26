@@ -17,21 +17,17 @@
 
 package io.glutenproject.execution
 
-import scala.collection.mutable.ListBuffer
-import scala.util.control.Breaks.{break, breakable}
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression._
-import io.glutenproject.substrait.{AggregationParams, JoinParams, SubstraitContext}
+import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
-import java.util
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -41,6 +37,10 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import java.util
+import scala.collection.mutable.ListBuffer
+import scala.util.control.Breaks.{break, breakable}
 
 /**
  * Columnar Based HashAggregateExec.
@@ -363,7 +363,7 @@ abstract class HashAggregateExecBaseTransformer(
         getAggRel(substraitContext, operatorId, aggParams, null, validation = true)
       } catch {
         case e: Throwable =>
-          logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          logWarning(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
           return false
       }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))

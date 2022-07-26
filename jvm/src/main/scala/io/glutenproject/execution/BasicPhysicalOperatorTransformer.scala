@@ -212,7 +212,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
         substraitContext, condition, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logWarning(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
         return false
     }
 
@@ -321,7 +321,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         substraitContext, projectList, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        logWarning(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
         return false
     }
     if (relNode == null) {

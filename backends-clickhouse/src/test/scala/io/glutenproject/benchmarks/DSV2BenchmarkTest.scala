@@ -44,7 +44,7 @@ object DSV2BenchmarkTest {
       val queryPath = resourcePath + "/queries/"
       // (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
       // "/data1/gazelle-jni-warehouse")
-      ("/data1/test_output/tpch-data-sf10", "parquet", 1, false, queryPath + "q01.sql", "",
+      ("/data1/test_output/tpch-data-sf10", "parquet", 20, false, queryPath + "q01.sql", "",
         true, "/data1/gazelle-jni-warehouse")
     }
 
@@ -76,12 +76,12 @@ object DSV2BenchmarkTest {
       "cmake-build-release/utils/local-engine/libch.so"
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
-        .master("local[6]")
+        .master("local[12]")
         .config("spark.driver.memory", "30G")
         .config("spark.driver.memoryOverhead", "10G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
         .config("spark.default.parallelism", 1)
-        .config("spark.sql.shuffle.partitions", 6)
+        .config("spark.sql.shuffle.partitions", 12)
         .config("spark.sql.adaptive.enabled", "false")
         .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
         .config("spark.sql.files.openCostInBytes", 1024 << 10 << 10) // default is 4M
@@ -94,9 +94,9 @@ object DSV2BenchmarkTest {
         .config("spark.memory.fraction", "0.6")
         .config("spark.memory.storageFraction", "0.3")
         // .config("spark.sql.objectHashAggregate.sortBased.fallbackThreshold", "128")
-        .config("spark.plugins", "io.glutenproject.GlutenPlugin")
+        /* .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.sql.catalog.spark_catalog",
-          "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
+          "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog") */
         // .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         // .config("spark.io.compression.codec", "LZ4")
         .config("spark.shuffle.compress", "true")
@@ -125,7 +125,7 @@ object DSV2BenchmarkTest {
         .config("spark.sql.autoBroadcastJoinThreshold", "10MB")
         .config("spark.sql.exchange.reuse", "true")
         .config("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
-        .config("spark.gluten.sql.columnar.coalesce.batches", "false")
+        .config("spark.gluten.sql.columnar.coalesce.batches", "true")
         // .config("spark.gluten.sql.columnar.filescan", "true")
         // .config("spark.sql.optimizeNullAwareAntiJoin", "false")
         // .config("spark.sql.join.preferSortMergeJoin", "false")
@@ -180,6 +180,7 @@ object DSV2BenchmarkTest {
     }
     // scalastyle:off println
     println("start to query ... ")
+    Thread.sleep(10000)
 
     // createClickHouseTablesAsSelect(spark)
     // createClickHouseTablesAndInsert(spark)
@@ -198,9 +199,9 @@ object DSV2BenchmarkTest {
     // createTempView(spark, "/data1/test_output/tpch-data-sf10", "parquet")
     // createGlobalTempView(spark)
     // testJoinIssue(spark)
-    // testTPCHOne(spark, executedCnt)
+    testTPCHOne(spark, executedCnt)
     // testSepScanRDD(spark, executedCnt)
-    testTPCHAll(spark)
+    // testTPCHAll(spark)
     // benchmarkTPCH(spark, executedCnt)
 
     System.out.println("waiting for finishing")
@@ -226,7 +227,7 @@ object DSV2BenchmarkTest {
            |SELECT
            |    sum(l_extendedprice * l_discount) AS revenue
            |FROM
-           |    ch_lineitem100
+           |    lineitem100
            |WHERE
            |    l_shipdate >= date'1994-01-01'
            |    AND l_shipdate < date'1994-01-01' + interval 1 year

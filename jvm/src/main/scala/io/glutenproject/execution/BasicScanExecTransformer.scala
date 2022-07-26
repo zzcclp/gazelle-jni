@@ -75,7 +75,7 @@ trait BasicScanExecTransformer extends TransformSupport {
         doTransform(substraitContext).root
       } catch {
         case e: Throwable =>
-          logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          logWarning(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
           return false
       }
 
