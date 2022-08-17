@@ -43,7 +43,6 @@ class NativeFileScanColumnarRDD(sc: SparkContext,
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     val inputPartition = castNativePartition(split)
-    var scanTotalTime = 0L
 
     var resIter: GeneralOutIterator = null
     if (loadNative) {
@@ -56,13 +55,16 @@ class NativeFileScanColumnarRDD(sc: SparkContext,
       TaskContext.get().addTaskCompletionListener[Unit] { _ => resIter.close() }
     }
     val iter = new Iterator[Any] {
+      var scanTotalTime = 0L
+      var scanTimeAdded = false
       override def hasNext: Boolean = {
         if (loadNative) {
           val startNs = System.nanoTime()
           val res = resIter.hasNext
           scanTotalTime += System.nanoTime() - startNs
-          if (!res) {
+          if (!res && !scanTimeAdded) {
             scanTime += NANOSECONDS.toMillis(scanTotalTime)
+            scanTimeAdded = true
           }
           res
         } else {
@@ -72,9 +74,6 @@ class NativeFileScanColumnarRDD(sc: SparkContext,
 
       override def next(): Any = {
         val startNs = System.nanoTime()
-        if (!hasNext) {
-          throw new java.util.NoSuchElementException("End of stream")
-        }
         val cb = resIter.next()
         numOutputRows += cb.numRows()
         numOutputBatches += 1
