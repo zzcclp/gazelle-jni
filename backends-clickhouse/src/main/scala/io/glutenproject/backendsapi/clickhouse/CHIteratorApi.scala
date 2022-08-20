@@ -71,7 +71,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
     wsCxt.substraitContext.setLocalFilesNodes(localFilesNodes)
     val substraitPlan = wsCxt.root.toProtobuf
     if (index < 3) {
-      logDebug(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
+      logWarning(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
     }
     NativePartition(index, substraitPlan.toByteArray)
   }

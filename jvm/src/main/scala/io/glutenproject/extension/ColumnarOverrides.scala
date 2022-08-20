@@ -20,6 +20,7 @@ package io.glutenproject.extension
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
+import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar.{RowGuard, TransformGuardRule}
 
 import org.apache.spark.SparkConf
@@ -72,7 +73,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         plan.relation,
         plan.output,
         plan.requiredSchema,
-        plan.partitionFilters,
+        ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters),
         plan.optionalBucketSet,
         plan.optionalNumCoalescedBuckets,
         plan.dataFilters,
@@ -167,6 +168,9 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       if (isSupportAdaptive) {
         new ColumnarBroadcastExchangeAdaptor(plan.mode, child)
       } else {
+        if (!plan.mode.asInstanceOf[HashedRelationBroadcastMode].key.forall(
+          _.isInstanceOf[AttributeReference])) {
+        }
         ColumnarBroadcastExchangeExec(plan.mode, child)
       }
     case plan: BroadcastHashJoinExec =>
@@ -230,9 +234,11 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
     case plan: RowToColumnarExec =>
-      val child = replaceWithTransformerPlan(plan.child)
-      logDebug(s"ColumnarPostOverrides RowToArrowColumnarExec(${child.getClass})")
-      BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
+      // val child = replaceWithTransformerPlan(plan.child)
+      // logDebug(s"ColumnarPostOverrides RowToArrowColumnarExec(${child.getClass})")
+      // BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
+      val children = plan.children.map(replaceWithTransformerPlan)
+      plan.withNewChildren(children)
     case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) =>
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: ColumnarBroadcastExchangeAdaptor) =>
@@ -330,7 +336,8 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       isSupportAdaptive = supportAdaptive(plan)
       val rule = preOverrides
       rule.setAdaptiveSupport(isSupportAdaptive)
-      rule(rowGuardOverrides(plan))
+      val newPlan = rule(rowGuardOverrides(plan))
+      newPlan
     } else {
       plan
     }
@@ -348,7 +355,8 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       val rule = postOverrides
       rule.setAdaptiveSupport(isSupportAdaptive)
       val tmpPlan = rule(plan)
-      collapseOverrides(tmpPlan)
+      val newPlan = collapseOverrides(tmpPlan)
+      newPlan
     } else {
       plan
     }

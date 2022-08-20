@@ -302,7 +302,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val resCtx = doWholestageTransform()
       logInfo(
         s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
-      logDebug(s"Generating substrait plan:\n${resCtx.root.toProtobuf.toString}")
+      logWarning(s"Generating substrait plan:\n${resCtx.root.toProtobuf.toString}")
 
       val metricsUpdatingFunction: GeneralOutIterator => Unit = (resIter: GeneralOutIterator) =>
         updateNativeMetrics(

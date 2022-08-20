@@ -23,10 +23,14 @@ import io.glutenproject.execution.BroadCastHashJoinContext
 import io.glutenproject.vectorized.StorageJoinBuilder
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+case class FakeResult(partitionKey: Long)
 
 case class ClickHouseBuildSideRelation(mode: BroadcastMode,
                                        output: Seq[Attribute],
@@ -54,7 +58,13 @@ case class ClickHouseBuildSideRelation(mode: BroadcastMode,
     */
   override def transform(key: Expression): Array[InternalRow] = {
     val allBatches = batches.flatten
+    val columnarEncoder = Encoders.product[FakeResult]
+    val columnarExprEncoder = columnarEncoder.asInstanceOf[ExpressionEncoder[FakeResult]]
     // convert broadcasted value to Array[InternalRow].
-    Array.empty
+    Array(columnarExprEncoder.createSerializer().apply(FakeResult(2451545)),
+      columnarExprEncoder.createSerializer().apply(FakeResult(2451546)),
+      columnarExprEncoder.createSerializer().apply(FakeResult(2451547)),
+      columnarExprEncoder.createSerializer().apply(FakeResult(2451548)),
+      columnarExprEncoder.createSerializer().apply(FakeResult(2451549)))
   }
 }
