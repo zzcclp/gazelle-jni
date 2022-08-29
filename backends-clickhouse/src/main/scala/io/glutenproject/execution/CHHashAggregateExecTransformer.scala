@@ -31,6 +31,7 @@ import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.exchange.Exchange
 
 case class CHHashAggregateExecTransformer(
@@ -82,7 +83,8 @@ case class CHHashAggregateExecTransformer(
       val typeList = new util.ArrayList[TypeNode]()
       val nameList = new util.ArrayList[String]()
       // When the child is file scan operator
-      val (inputAttrs, outputAttrs) = if (child.find(_.isInstanceOf[Exchange]).isEmpty) {
+      val (inputAttrs, outputAttrs) = if (child.find(_.isInstanceOf[Exchange]).isEmpty
+        && child.find(_.isInstanceOf[QueryStageExec]).isEmpty) {
         for (attr <- child.output) {
           typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
           nameList.add(ConverterUtils.genColumnNameWithExprId(attr))

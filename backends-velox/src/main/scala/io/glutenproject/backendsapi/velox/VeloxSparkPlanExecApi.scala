@@ -162,7 +162,8 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
   override def createColumnarBatchSerializer(
                                               schema: StructType,
                                               readBatchNumRows: SQLMetric,
-                                              numOutputRows: SQLMetric): Serializer = {
+                                              numOutputRows: SQLMetric,
+                                              dataSize: SQLMetric): Serializer = {
     new ArrowColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
   }
 

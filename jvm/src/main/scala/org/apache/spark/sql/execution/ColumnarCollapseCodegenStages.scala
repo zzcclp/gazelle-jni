@@ -105,11 +105,10 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
  * is created, e.g. for special fallback handling when an existing WholeStageCodegenExec
  * failed to generate/compile code.
  */
-case class ColumnarCollapseCodegenStages(
-                                          columnarWholeStageEnabled: Boolean,
-                                          separateScanRDDForCH: Boolean,
-                                          codegenStageCounter: AtomicInteger =
-                                          new AtomicInteger(0))
+case class ColumnarCollapseCodegenStages(columnarWholeStageEnabled: Boolean,
+                                         separateScanRDDForCH: Boolean,
+                                         codegenStageCounter: AtomicInteger =
+                                         ColumnarCollapseCodegenStages.codegenStageCounter)
   extends Rule[SparkPlan] {
 
   def apply(plan: SparkPlan): SparkPlan = {
@@ -155,4 +154,8 @@ case class ColumnarCollapseCodegenStages(
         other.withNewChildren(other.children.map(insertWholeStageTransformer))
     }
   }
+}
+
+object ColumnarCollapseCodegenStages {
+  val codegenStageCounter = new AtomicInteger(0)
 }

@@ -25,10 +25,11 @@ import scala.io.Source
 import io.glutenproject.GlutenConfig
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 
 // scalastyle:off println
-object DSV2TPCDSBenchmarkTest {
+object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
   def main(args: Array[String]): Unit = {
 
@@ -45,6 +46,7 @@ object DSV2TPCDSBenchmarkTest {
     val separateScanRDD = "true"
     val coalesceBatches = "true"
     val broadcastThreshold = "10MB" // 100KB  10KB
+    val adaptiveEnabled = "true"
     val sparkLocalDir = "/data1/gazelle-jni-warehouse/spark_local_dirs"
     val (parquetFilesPath, fileFormat,
     executedCnt, configed, sqlFilePath, stopFlagFile,
@@ -88,12 +90,25 @@ object DSV2TPCDSBenchmarkTest {
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
         .master(s"local[${thrdCnt}]")
+        .config("spark.driver.maxResultSize", "1g")
         .config("spark.driver.memory", "30G")
         .config("spark.driver.memoryOverhead", "10G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
         .config("spark.default.parallelism", 1)
         .config("spark.sql.shuffle.partitions", shufflePartitions)
-        .config("spark.sql.adaptive.enabled", "false")
+        .config("spark.sql.adaptive.enabled", adaptiveEnabled)
+        .config("spark.sql.adaptive.logLevel", "DEBUG")
+        .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "64MB")
+        .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+        // .config("spark.sql.adaptive.coalescePartitions.minPartitionNum", "")
+        // .config("spark.sql.adaptive.coalescePartitions.initialPartitionNum", "")
+        .config("spark.sql.adaptive.fetchShuffleBlocksInBatch", "true")
+        .config("spark.sql.adaptive.localShuffleReader.enabled", "true")
+        .config("spark.sql.adaptive.skewJoin.enabled", "true")
+        .config("spark.sql.adaptive.skewJoin.skewedPartitionFactor", "5")
+        .config("spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "256MB")
+        .config("spark.sql.adaptive.nonEmptyPartitionRatioForBroadcastJoin", "0.2")
+        // .config("spark.sql.adaptive.optimizer.excludedRules", "")
         .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
         .config("spark.sql.files.openCostInBytes", 1024 << 10 << 10) // default is 4M
         .config("spark.sql.files.minPartitionNum", "1")
@@ -145,7 +160,7 @@ object DSV2TPCDSBenchmarkTest {
         // .config("spark.sql.optimizeNullAwareAntiJoin", "false")
         // .config("spark.sql.join.preferSortMergeJoin", "false")
         .config("spark.sql.shuffledHashJoinFactor", "3")
-        // .config("spark.sql.planChangeLog.level", "info")
+        // .config("spark.sql.planChangeLog.level", "warn")
         // .config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.sql.parquet.columnarReaderBatchSize", "4096")
@@ -248,6 +263,8 @@ object DSV2TPCDSBenchmarkTest {
       val plan = df.queryExecution.executedPlan
       // df.queryExecution.debug.codegen
       val result = df.collect() // .show(100, false)  //.collect()
+      df.explain(false)
+      DSV2BenchmarkTest.collectAllJoinSide(plan)
       println(result.size)
       // result.foreach(r => println(r.mkString(",")))
       result.foreach(r => println(r.mkString("|-|")))
@@ -297,8 +314,8 @@ object DSV2TPCDSBenchmarkTest {
         for (j <- 1 to executedCnt) {
           val startTime = System.nanoTime()
           val df = spark.sql(sqlStr)
-          if (executeExplain) df.explain(false)
           val result = df.collect()
+          if (executeExplain) df.explain(false)
           println(result.size)
           if (printData) result.foreach(r => println(r.mkString(",")))
           // .show(30, false)
@@ -335,10 +352,10 @@ object DSV2TPCDSBenchmarkTest {
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
       val df = spark.sql(sqlStr) // .show(30, false)
-      df.explain(false)
       val plan = df.queryExecution.executedPlan
       // df.queryExecution.debug.codegen
       val result = df.collect() // .show(100, false)  //.collect()
+      df.explain(false)
       println(result.size)
       result.foreach(r => println(r.mkString(",")))
       val tookTime = (System.nanoTime() - startTime) / 1000000
@@ -388,8 +405,8 @@ object DSV2TPCDSBenchmarkTest {
         for (j <- 1 to executedCnt) {
           val startTime = System.nanoTime()
           val df = spark.sql(sqlStr)
-          if (executeExplain) df.explain(false)
           val result = df.collect()
+          if (executeExplain) df.explain(false)
           println(result.size)
           if (printData) result.foreach(r => println(r.mkString(",")))
           // .show(30, false)

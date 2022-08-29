@@ -104,8 +104,10 @@ trait ISparkPlanExecApi extends IBackendsApi {
    *
    * @return
    */
-  def createColumnarBatchSerializer(schema: StructType, readBatchNumRows: SQLMetric,
-                                    numOutputRows: SQLMetric): Serializer
+  def createColumnarBatchSerializer(schema: StructType,
+                                    readBatchNumRows: SQLMetric,
+                                    numOutputRows: SQLMetric,
+                                    dataSize: SQLMetric): Serializer
 
   /**
    * Create broadcast relation for BroadcastExchangeExec

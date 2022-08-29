@@ -294,7 +294,8 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
   }
 }
 
-case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule with Logging {
+case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule
+  with AdaptiveSparkPlanHelper with Logging {
   val columnarWholeStageEnabled: Boolean =
     conf.getBoolean("spark.gluten.sql.columnar.wholestagetransform", defaultValue = true)
   val isCH: Boolean = conf
@@ -313,6 +314,14 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 
   def preOverrides: TransformPreOverrides = TransformPreOverrides()
 
+  def includeUnSupportedPlans(plan: SparkPlan): Boolean = {
+    collect(plan) {
+      case s: SerializeFromObjectExec => true
+      case o: ObjectHashAggregateExec => true
+      case v2CommandExec: V2CommandExec => true
+    }.nonEmpty
+  }
+
   override def preColumnarTransitions: Rule[SparkPlan] = plan => {
     // TODO: Currently there are some fallback issues on CH backend when SparkPlan is
     // TODO: SerializeFromObjectExec, ObjectHashAggregateExec and V2CommandExec.
@@ -321,10 +330,7 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
     //   import spark.implicits._
     //   val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     //   df.summary().show(100, false)
-    val chSupported = isCH && nativeEngineEnabled &&
-      !plan.isInstanceOf[SerializeFromObjectExec] &&
-      !plan.isInstanceOf[ObjectHashAggregateExec] &&
-      !plan.isInstanceOf[V2CommandExec]
+    val chSupported = isCH && nativeEngineEnabled && !includeUnSupportedPlans(plan)
 
     val otherSupported = !isCH && nativeEngineEnabled
     if (chSupported || otherSupported) {
@@ -339,10 +345,7 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
     // TODO: same as above.
-    val chSupported = isCH && nativeEngineEnabled &&
-      !plan.isInstanceOf[SerializeFromObjectExec] &&
-      !plan.isInstanceOf[ObjectHashAggregateExec] &&
-      !plan.isInstanceOf[V2CommandExec]
+    val chSupported = isCH && nativeEngineEnabled && !includeUnSupportedPlans(plan)
 
     val otherSupported = !isCH && nativeEngineEnabled
     if (chSupported || otherSupported) {

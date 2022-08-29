@@ -19,6 +19,7 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 
 class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSuite {
 
@@ -95,6 +96,48 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
   test("TPCDS Q21") {
     withSQLConf(
       ("spark.gluten.sql.columnar.columnartorow", "true")) {
+      runTPCDSQuery(21) { df =>
+        val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
+          case f: FileSourceScanExecTransformer => f.partitionFilters.exists {
+            case _: DynamicPruningExpression => true
+            case _ => false
+          }
+          case _ => false
+        }
+        assert(foundDynamicPruningExpr.nonEmpty == true)
+        val dynamicPruningExpression = foundDynamicPruningExpr.get
+          .asInstanceOf[FileSourceScanExecTransformer].partitionFilters.filter(
+          FileSourceScanExecTransformer.isDynamicPruningFilter)
+        assert(dynamicPruningExpression.nonEmpty)
+      }
+    }
+  }
+
+  test("TPCDS Q21 with AQE") {
+    withSQLConf(
+      ("spark.gluten.sql.columnar.columnartorow", "true"),
+      ("spark.sql.adaptive.enabled", "true")) {
+      runTPCDSQuery(21) { df =>
+        assert(!df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+        val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
+          case f: FileSourceScanExecTransformer => f.partitionFilters.exists {
+            case _: DynamicPruningExpression => true
+            case _ => false
+          }
+          case _ => false
+        }
+        assert(foundDynamicPruningExpr.nonEmpty == true)
+        val dynamicPruningExpression = foundDynamicPruningExpr.get
+          .asInstanceOf[FileSourceScanExecTransformer].partitionFilters.filter(
+          FileSourceScanExecTransformer.isDynamicPruningFilter)
+        assert(dynamicPruningExpression.nonEmpty)
+      }
+    }
+  }
+
+  test("TPCDS Q21 with non-separated scan rdd") {
+    withSQLConf(
+      ("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")) {
       runTPCDSQuery(21) { df =>
         val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
           case f: FileSourceScanExecTransformer => f.partitionFilters.exists {

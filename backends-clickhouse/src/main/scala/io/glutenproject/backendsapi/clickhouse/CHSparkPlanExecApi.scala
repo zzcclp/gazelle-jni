@@ -35,7 +35,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarRule, ProjectExec, SparkPlan, WholeStageCodegenExec}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -142,8 +142,9 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
     */
   override def createColumnarBatchSerializer(schema: StructType,
                                              readBatchNumRows: SQLMetric,
-                                             numOutputRows: SQLMetric): Serializer = {
-    new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows)
+                                             numOutputRows: SQLMetric,
+                                             dataSize: SQLMetric): Serializer = {
+    new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows, dataSize)
   }
 
 
@@ -171,13 +172,20 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
             newExpr
         }
       }
+
       val newChild = child match {
-        case wf: WholeStageTransformerExec =>
-          wf.withNewChildren(Seq(ProjectExecTransformer(
+        case wt: WholeStageTransformerExec =>
+          wt.withNewChildren(Seq(ProjectExecTransformer(
             child.output ++ appendedProjections.toSeq,
-            wf.child)))
+            wt.child)))
         case w: WholeStageCodegenExec =>
           w.withNewChildren(Seq(ProjectExec(child.output ++ appendedProjections.toSeq, w.child)))
+        case c: CoalesceBatchesExec =>
+          // when aqe is open
+          // TODO: remove this after pushdowning preprojection
+          WholeStageTransformerExec(
+            ProjectExecTransformer(child.output ++ appendedProjections.toSeq, c))(
+            ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet())
       }
       (newChild, (child.output ++ appendedProjections.toSeq).map(_.toAttribute),
         preProjectionBuildKeys)

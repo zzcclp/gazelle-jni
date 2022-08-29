@@ -23,11 +23,14 @@ import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ShuffledHashJoinExecTransformer}
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 
-object DSV2BenchmarkTest {
+object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
 
   val tableName = "lineitem_ch"
 
@@ -46,6 +49,7 @@ object DSV2BenchmarkTest {
     val separateScanRDD = "true"
     val coalesceBatches = "true"
     val broadcastThreshold = "10MB"
+    val adaptiveEnabled = "true"
     val sparkLocalDir = "/data1/gazelle-jni-warehouse/spark_local_dirs"
     val (parquetFilesPath, fileFormat,
     executedCnt, configed, sqlFilePath, stopFlagFile,
@@ -89,12 +93,25 @@ object DSV2BenchmarkTest {
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
         .master(s"local[${thrdCnt}]")
+        .config("spark.driver.maxResultSize", "1g")
         .config("spark.driver.memory", "30G")
         .config("spark.driver.memoryOverhead", "10G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
         .config("spark.default.parallelism", 1)
         .config("spark.sql.shuffle.partitions", shufflePartitions)
-        .config("spark.sql.adaptive.enabled", "false")
+        .config("spark.sql.adaptive.enabled", adaptiveEnabled)
+        .config("spark.sql.adaptive.logLevel", "DEBUG")
+        .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "64MB")
+        .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+        // .config("spark.sql.adaptive.coalescePartitions.minPartitionNum", "3")
+        // .config("spark.sql.adaptive.coalescePartitions.initialPartitionNum", "")
+        .config("spark.sql.adaptive.fetchShuffleBlocksInBatch", "true")
+        .config("spark.sql.adaptive.localShuffleReader.enabled", "true")
+        .config("spark.sql.adaptive.skewJoin.enabled", "true")
+        .config("spark.sql.adaptive.skewJoin.skewedPartitionFactor", "5")
+        .config("spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "256MB")
+        .config("spark.sql.adaptive.nonEmptyPartitionRatioForBroadcastJoin", "0.2")
+        // .config("spark.sql.adaptive.optimizer.excludedRules", "")
         .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
         .config("spark.sql.files.openCostInBytes", 1024 << 10 << 10) // default is 4M
         .config("spark.sql.files.minPartitionNum", "1")
@@ -146,7 +163,7 @@ object DSV2BenchmarkTest {
         // .config("spark.sql.optimizeNullAwareAntiJoin", "false")
         // .config("spark.sql.join.preferSortMergeJoin", "false")
         .config("spark.sql.shuffledHashJoinFactor", "3")
-        // .config("spark.sql.planChangeLog.level", "info")
+        .config("spark.sql.planChangeLog.level", "debug")
         // .config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.sql.parquet.columnarReaderBatchSize", "4096")
@@ -223,9 +240,9 @@ object DSV2BenchmarkTest {
     // createTempView(spark, "/data1/test_output/tpch-data-sf10", "parquet")
     // createGlobalTempView(spark)
     // testJoinIssue(spark)
-    testTPCHOne(spark, executedCnt)
+    // testTPCHOne(spark, executedCnt)
     // testSepScanRDD(spark, executedCnt)
-    // testTPCHAll(spark)
+    testTPCHAll(spark)
     // benchmarkTPCH(spark, executedCnt)
 
     System.out.println("waiting for finishing")
@@ -242,6 +259,14 @@ object DSV2BenchmarkTest {
     System.out.println("finished")
   }
 
+  def collectAllJoinSide(executedPlan: SparkPlan): Unit = {
+    val buildSides = collect(executedPlan) {
+      case s: ShuffledHashJoinExecTransformer => "Shuffle-" + s.buildSide.toString
+      case b: BroadcastHashJoinExecTransformer => "Broadcast-" + b.buildSide.toString
+    }
+    println(buildSides.mkString(" -- "))
+  }
+
   def testTPCHOne(spark: SparkSession, executedCnt: Int): Unit = {
     spark.sql(
       s"""
@@ -253,41 +278,57 @@ object DSV2BenchmarkTest {
       val df = spark.sql(
         s"""
            |SELECT
-           |    nation,
-           |    o_year,
-           |    sum(amount) AS sum_profit
-           |FROM (
-           |    SELECT /*+ SHUFFLE_MERGE(ch_partsupp100), SHUFFLE_MERGE(ch_orders100) */
-           |        n_name AS nation,
-           |        extract(year FROM o_orderdate) AS o_year,
-           |        l_extendedprice * (1 - l_discount) - ps_supplycost * l_quantity AS amount
-           |    FROM
-           |        ch_part100,
-           |        ch_supplier100,
-           |        ch_lineitem100,
-           |        ch_partsupp100,
-           |        ch_orders100,
-           |        ch_nation100
-           |    WHERE
-           |        s_suppkey = l_suppkey
-           |        AND ps_suppkey = l_suppkey
-           |        AND ps_partkey = l_partkey
-           |        AND p_partkey = l_partkey
-           |        AND o_orderkey = l_orderkey
-           |        AND s_nationkey = n_nationkey
-           |        AND p_name LIKE '%green%') AS profit
-           |GROUP BY
-           |    nation,
-           |    o_year
+           |    s_acctbal,
+           |    s_name,
+           |    n_name,
+           |    p_partkey,
+           |    p_mfgr,
+           |    s_address,
+           |    s_phone,
+           |    s_comment
+           |FROM
+           |    ch_part100,
+           |    ch_supplier100,
+           |    ch_partsupp100,
+           |    ch_nation100,
+           |    ch_region100
+           |WHERE
+           |    p_partkey = ps_partkey
+           |    AND s_suppkey = ps_suppkey
+           |    AND p_size = 15
+           |    AND p_type LIKE '%BRASS'
+           |    AND s_nationkey = n_nationkey
+           |    AND n_regionkey = r_regionkey
+           |    AND r_name = 'EUROPE'
+           |    AND ps_supplycost = (
+           |        SELECT
+           |            min(ps_supplycost)
+           |        FROM
+           |            ch_partsupp100,
+           |            ch_supplier100,
+           |            ch_nation100,
+           |            ch_region100
+           |        WHERE
+           |            p_partkey = ps_partkey
+           |            AND s_suppkey = ps_suppkey
+           |            AND s_nationkey = n_nationkey
+           |            AND n_regionkey = r_regionkey
+           |            AND r_name = 'EUROPE')
            |ORDER BY
-           |    nation,
-           |    o_year DESC;
+           |    s_acctbal DESC,
+           |    n_name,
+           |    s_name,
+           |    p_partkey
+           |LIMIT 100;
            |
            |""".stripMargin) // .show(30, false)
       df.explain(false)
       val plan = df.queryExecution.executedPlan
       // df.queryExecution.debug.codegen
+      df.explain(false)
       val result = df.collect() // .show(100, false)  //.collect()
+      df.explain(false)
+      collectAllJoinSide(plan)
       println(result.size)
       result.foreach(r => println(r.mkString(",")))
       val tookTime = (System.nanoTime() - startTime) / 1000000
@@ -373,12 +414,12 @@ object DSV2BenchmarkTest {
   def testTPCHAll(spark: SparkSession): Unit = {
     spark.sql(
       s"""
-         |use tpch_nullable;
+         |use default;
          |""".stripMargin).show(1000, false)
     val tookTimeArr = ArrayBuffer[Long]()
     val executedCnt = 1
     val executeExplain = false
-    val sqlFilePath = "/data2/tpch-queries-ch100/"
+    val sqlFilePath = "/data2/tpch-queries-spark/"
     for (i <- 1 to 22) {
       if (i != 21) {
         val sqlNum = "q" + "%02d".format(i)
@@ -390,8 +431,9 @@ object DSV2BenchmarkTest {
         for (j <- 1 to executedCnt) {
           val startTime = System.nanoTime()
           val df = spark.sql(sqlStr)
-          if (executeExplain) df.explain(false)
           val result = df.collect()
+          if (executeExplain) df.explain(false)
+          collectAllJoinSide(df.queryExecution.executedPlan)
           println(result.size)
           result.foreach(r => println(r.mkString(",")))
           // .show(30, false)

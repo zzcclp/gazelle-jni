@@ -106,7 +106,8 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
     BackendsApiManager.getSparkPlanExecApiInstance
       .createColumnarBatchSerializer(schema,
         longMetric("avgReadBatchNumRows"),
-        longMetric("numOutputRows"))
+        longMetric("numOutputRows"),
+        longMetric("dataSize"))
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
   override def nodeName: String = "ColumnarExchange"
@@ -218,7 +219,8 @@ class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Partitioni
   val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
     .createColumnarBatchSerializer(schema,
       longMetric("avgReadBatchNumRows"),
-      longMetric("numOutputRows"))
+      longMetric("numOutputRows"),
+      longMetric("dataSize"))
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
   override def nodeName: String = "ColumnarExchange"
