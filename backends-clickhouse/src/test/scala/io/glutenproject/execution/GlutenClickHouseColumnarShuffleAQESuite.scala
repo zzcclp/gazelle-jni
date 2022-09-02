@@ -18,8 +18,12 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.execution.CoalescedPartitionSpec
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper,
+  AQEShuffleReadExec, ColumnarAQEShuffleReadExec}
 
-class GlutenClickHouseDSV2Suite extends GlutenClickHouseTPCHAbstractSuite {
+class GlutenClickHouseColumnarShuffleAQESuite extends GlutenClickHouseTPCHAbstractSuite
+  with AdaptiveSparkPlanHelper {
 
   override protected val tablesPath: String = basePath + "/tpch-data-ch"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
@@ -30,28 +34,39 @@ class GlutenClickHouseDSV2Suite extends GlutenClickHouseTPCHAbstractSuite {
     */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.shuffle.manager", "sort")
-      .set("spark.io.compression.codec", "snappy")
-      .set("spark.sql.shuffle.partitions", "1")
-      .set("spark.sql.autoBroadcastJoinThreshold", "-1")
-      .set("spark.gluten.sql.columnar.backend.ch.use.v2", "true")
+      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+      .set("spark.io.compression.codec", "LZ4")
+      .set("spark.sql.shuffle.partitions", "5")
+      .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
+      .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
+      .set("spark.sql.adaptive.enabled", "true")
   }
 
   test("TPCH Q1") {
     runTPCHQuery(1) { df =>
-      val scanExec = df.queryExecution.executedPlan.collect {
-        case scanExec: BasicScanExecTransformer => scanExec
+      assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+      val customShuffleReaderExecs = collect(df.queryExecution.executedPlan) {
+        case csr: AQEShuffleReadExec => csr
       }
-      assert(scanExec.size == 1)
+      assert(customShuffleReaderExecs.size == 1)
+      val coalescedPartitionSpec = customShuffleReaderExecs(0)
+        .partitionSpecs(0).asInstanceOf[CoalescedPartitionSpec]
+      assert(coalescedPartitionSpec.startReducerIndex == 0)
+      assert(coalescedPartitionSpec.endReducerIndex == 4)
+
+      val colCustomShuffleReaderExecs = collect(df.queryExecution.executedPlan) {
+        case csr: ColumnarAQEShuffleReadExec => csr
+      }
+      assert(colCustomShuffleReaderExecs.size == 1)
+      val coalescedPartitionSpec1 = colCustomShuffleReaderExecs(0)
+        .partitionSpecs(0).asInstanceOf[CoalescedPartitionSpec]
+      assert(coalescedPartitionSpec1.startReducerIndex == 0)
+      assert(coalescedPartitionSpec1.endReducerIndex == 5)
     }
   }
 
   test("TPCH Q2") {
     runTPCHQuery(2) { df =>
-      val scanExec = df.queryExecution.executedPlan.collect {
-        case scanExec: BasicScanExecTransformer => scanExec
-      }
-      assert(scanExec.size == 9)
     }
   }
 

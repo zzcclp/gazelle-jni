@@ -19,8 +19,10 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper}
 
-class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSuite {
+class GlutenClickHouseTPCDSParquetAQESuite extends GlutenClickHouseTPCDSAbstractSuite
+  with AdaptiveSparkPlanHelper {
 
   override protected val tpcdsQueries: String =
     rootPath + "../../../../jvm/src/test/resources/tpcds-queries"
@@ -39,6 +41,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
       // Currently, it can not support to read multiple partitioned file in one task.
       .set("spark.sql.files.maxPartitionBytes", "134217728")
       .set("spark.sql.files.openCostInBytes", "134217728")
+      .set("spark.sql.adaptive.enabled", "true")
   }
 
   test("test 'select count(*)'") {
@@ -96,12 +99,12 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     withSQLConf(
       ("spark.gluten.sql.columnar.columnartorow", "true")) {
       runTPCDSQuery(21) { df =>
-        val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
-          case f: FileSourceScanExecTransformer => f.partitionFilters.exists {
+        assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+        val foundDynamicPruningExpr = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer if f.partitionFilters.exists {
             case _: DynamicPruningExpression => true
             case _ => false
-          }
-          case _ => false
+          } => f
         }
         assert(foundDynamicPruningExpr.nonEmpty == true)
       }
@@ -112,12 +115,12 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     withSQLConf(
       ("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")) {
       runTPCDSQuery(21) { df =>
-        val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
-          case f: FileSourceScanExecTransformer => f.partitionFilters.exists {
+        assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+        val foundDynamicPruningExpr = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer if f.partitionFilters.exists {
             case _: DynamicPruningExpression => true
             case _ => false
-          }
-          case _ => false
+          } => f
         }
         assert(foundDynamicPruningExpr.nonEmpty == true)
       }

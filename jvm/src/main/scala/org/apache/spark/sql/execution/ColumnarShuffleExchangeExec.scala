@@ -107,7 +107,8 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
     BackendsApiManager.getSparkPlanExecApiInstance
       .createColumnarBatchSerializer(schema,
         longMetric("avgReadBatchNumRows"),
-        longMetric("numOutputRows"))
+        longMetric("numOutputRows"),
+        longMetric("dataSize"))
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
   override def nodeName: String = "ColumnarExchange"
@@ -221,7 +222,8 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
   val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
     .createColumnarBatchSerializer(schema,
       longMetric("avgReadBatchNumRows"),
-      longMetric("numOutputRows"))
+      longMetric("numOutputRows"),
+      longMetric("dataSize"))
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
   override def nodeName: String = "ColumnarExchange"
@@ -230,14 +232,17 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
   override def numMappers: Int = shuffleDependency.rdd.getNumPartitions
 
   override def numPartitions: Int = shuffleDependency.partitioner.numPartitions
+
   override def runtimeStatistics: Statistics = {
     val dataSize = metrics("dataSize").value
     val rowCount = metrics(SQLShuffleWriteMetricsReporter.SHUFFLE_RECORDS_WRITTEN).value
     Statistics(dataSize, Some(rowCount))
   }
+
   override def getShuffleRDD(partitionSpecs: Array[ShufflePartitionSpec]): RDD[ColumnarBatch] = {
     cachedShuffleRDD
   }
+
   override def stringArgs: Iterator[Any] =
     super.stringArgs ++ Iterator(s"[id=#$id]")
 
