@@ -32,6 +32,7 @@
   <modules>
     <module>shims</module>
     <module>gluten-core</module>
+    <module>substrait/substrait-spark</module>
   </modules>
 
   <properties>
@@ -704,4 +705,18 @@
       </plugin>
     </plugins>
   </reporting>
+  <repositories>
+    <repository>
+      <id>Kyligence</id>
+      <name>Kyligence Repository</name>
+      <url>https://repository.kyligence.io/repository/maven-public/
+      </url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
 </project>
