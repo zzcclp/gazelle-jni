@@ -41,12 +41,9 @@ import java.util.Collections
 import scala.annotation.tailrec
 import scala.collection.JavaConverters.asJavaIterableConverter
 import scala.collection.mutable.ArrayBuffer
-class SubstraitRelVisitor extends LogicalPlanVisitor[relation.Rel] with Logging {
+class SubstraitRelVisitor extends AbstractLogicalPlanVisitor with Logging {
 
   private val TRUE = ExpressionCreator.bool(false, true)
-
-  private def t(p: LogicalPlan): relation.Rel =
-    throw new UnsupportedOperationException(s"Unable to convert the expression ${p.nodeName}")
 
   override def default(p: LogicalPlan): relation.Rel = p match {
     case p: LeafNode => convertReadOperator(p)
@@ -116,22 +113,10 @@ class SubstraitRelVisitor extends LogicalPlanVisitor[relation.Rel] with Logging 
     }
   }
 
-  override def visitDistinct(p: Distinct): relation.Rel = t(p)
-
-  override def visitExcept(p: Except): relation.Rel = t(p)
-
-  override def visitExpand(p: Expand): relation.Rel = t(p)
-
   override def visitFilter(p: Filter): relation.Rel = {
     val condition = toExpression(p.child.output)(p.condition)
     relation.Filter.builder().condition(condition).input(visit(p.child)).build()
   }
-
-  override def visitGenerate(p: Generate): relation.Rel = t(p)
-
-  override def visitGlobalLimit(p: GlobalLimit): relation.Rel = t(p)
-
-  override def visitIntersect(p: Intersect): relation.Rel = t(p)
 
   private def toSubstraitJoin(joinType: JoinType): relation.Join.JoinType = joinType match {
     case Inner | Cross => relation.Join.JoinType.INNER
@@ -169,10 +154,6 @@ class SubstraitRelVisitor extends LogicalPlanVisitor[relation.Rel] with Logging 
     }
   }
 
-  override def visitLocalLimit(p: LocalLimit): relation.Rel = t(p)
-
-  override def visitPivot(p: Pivot): relation.Rel = t(p)
-
   override def visitProject(p: Project): relation.Rel = {
     val expressions = p.projectList.map(toExpression(p.child.output)).toList
     relation.Project.builder
@@ -181,20 +162,6 @@ class SubstraitRelVisitor extends LogicalPlanVisitor[relation.Rel] with Logging 
       .input(visit(p.child))
       .build()
   }
-
-  override def visitRepartition(p: Repartition): relation.Rel = t(p)
-
-  override def visitRepartitionByExpr(p: RepartitionByExpression): relation.Rel = t(p)
-
-  override def visitSample(p: Sample): relation.Rel = t(p)
-
-  override def visitScriptTransform(p: ScriptTransformation): relation.Rel = t(p)
-
-  override def visitUnion(p: Union): relation.Rel = t(p)
-
-  override def visitWindow(p: Window): relation.Rel = t(p)
-
-  override def visitTail(p: Tail): relation.Rel = t(p)
 
   private def toSortField(output: Seq[Attribute] = Nil)(order: SortOrder): SExpression.SortField = {
     val direction = (order.direction, order.nullOrdering) match {
@@ -211,8 +178,6 @@ class SubstraitRelVisitor extends LogicalPlanVisitor[relation.Rel] with Logging 
     val fields = sort.order.map(toSortField(sort.child.output)).asJava
     relation.Sort.builder.addAllSortFields(fields).input(input).build
   }
-
-  override def visitWithCTE(p: WithCTE): relation.Rel = t(p)
 
   private def toExpression(output: Seq[Attribute] = Nil)(e: Expression): SExpression = {
     ExpressionConverter.defaultConverter(e, output)

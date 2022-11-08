@@ -112,6 +112,7 @@
     </spotless.license.header>
 
     <!-- plugin version-->
+    <build-helper-maven-plugin.version>3.2.0</build-helper-maven-plugin.version>
     <scala.compiler.version>4.3.0</scala.compiler.version>
     <maven.compiler.plugin>3.8.0</maven.compiler.plugin>
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
@@ -639,6 +640,11 @@
               </goals>
             </execution>
           </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>build-helper-maven-plugin</artifactId>
+          <version>${build-helper-maven-plugin.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>
