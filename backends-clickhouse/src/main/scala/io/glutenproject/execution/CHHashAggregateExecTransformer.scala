@@ -125,6 +125,7 @@ case class CHHashAggregateExecTransformer(
               // for aggregate func
               ConverterUtils.genColumnNameWithExprId(attr) +
                 "#Partial#" + ConverterUtils.getShortAttributeName(attr)
+              ConverterUtils.genColumnNameWithExprId(attr)
             } else {
               // for group by cols
               ConverterUtils.genColumnNameWithExprId(attr)
