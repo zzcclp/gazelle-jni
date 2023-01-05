@@ -86,10 +86,13 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
       return childCtx
     }
 
+    val newConditions = FilterHandler.removeUnnecessaryIsNotNull(
+      splitConjunctivePredicates(leftCondition),
+      child.outputSet)
     val currRel = if (childCtx != null) {
       getRelNode(
         context,
-        leftCondition,
+        newConditions.orNull,
         child.output,
         operatorId,
         childCtx.root,
@@ -100,7 +103,7 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
       val attrList = new util.ArrayList[Attribute](child.output.asJava)
       getRelNode(
         context,
-        leftCondition,
+        newConditions.orNull,
         child.output,
         operatorId,
         RelBuilder.makeReadRel(attrList, context, operatorId),

@@ -30,7 +30,7 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
 import io.glutenproject.vectorized.OperatorMetrics
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkEnv}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -251,14 +251,17 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
       return childCtx
     }
 
+    val newConditions = FilterHandler.removeUnnecessaryIsNotNull(
+      splitConjunctivePredicates(condition),
+      child.outputSet)
     val currRel = if (childCtx != null) {
       getRelNode(
-        context, condition, child.output, operatorId, childCtx.root, validation = false)
+        context, newConditions.orNull, child.output, operatorId, childCtx.root, validation = false)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
       val attrList = new util.ArrayList[Attribute](child.output.asJava)
-      getRelNode(context, condition, child.output, operatorId,
+      getRelNode(context, newConditions.orNull, child.output, operatorId,
         RelBuilder.makeReadRel(attrList, context, operatorId), validation = false)
     }
     assert(currRel != null, "Filter rel should be valid.")
@@ -616,5 +619,35 @@ object FilterHandler {
       }
     case other =>
       throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
+  }
+
+  /**
+   * Remove unnecessary IsNotNull
+   */
+  def removeUnnecessaryIsNotNull(
+      conditions: Seq[Expression],
+      attrs: AttributeSet): Option[Expression] = {
+    val sepIsNotNullEnable = SparkEnv.get.conf
+      .get("spark.gluten.sql.columnar.backend.ch.remove.isnotnull", "false")
+      .toBoolean
+    if (sepIsNotNullEnable) {
+      val (isNotNullPreds, otherPreds) = conditions.partition {
+        case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(attrs)
+        case _ => false
+      }
+      val otherAttributes = AttributeSet(otherPreds.flatMap(_.references).distinct)
+      val necessaryIsNotNull = isNotNullPreds.filter { c =>
+        !c.references.subsetOf(otherAttributes)
+      }
+      (necessaryIsNotNull ++ otherPreds).reduceLeftOption(And)
+    } else {
+      conditions.reduceLeftOption(And)
+    }
+  }
+
+  // If one expression and its children are null intolerant, it is null intolerant.
+  def isNullIntolerant(expr: Expression): Boolean = expr match {
+    case e: NullIntolerant => e.children.forall(isNullIntolerant)
+    case _ => false
   }
 }
