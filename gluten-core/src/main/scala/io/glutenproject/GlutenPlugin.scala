@@ -20,11 +20,13 @@ package io.glutenproject
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
+import org.apache.spark.listeners.GlutenSQLAppStatusListener
 import org.apache.spark.network.util.JavaUtils
+import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.internal.StaticSQLConf
-import org.apache.spark.{SparkConf, SparkContext}
 
 import java.util
 import java.util.{Collections, Objects}
@@ -41,12 +43,15 @@ class GlutenPlugin extends SparkPlugin {
 }
 
 private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
+
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     val conf = pluginContext.conf()
     setPredefinedConfigs(sc, conf)
     // Initialize Backends API
     BackendsApiManager.initialize()
     BackendsApiManager.getInitializerApiInstance.initialize(conf)
+    GlutenSQLAppStatusListener.addToSparkListenerBus(sc, new GlutenSQLAppStatusListener(sc.getConf))
+    GlutenDriverEndpoint.glutenDriverEndpointRef
     Collections.emptyMap()
   }
 
@@ -92,11 +97,14 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
 
 private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
 
+  var executorEndpoint: GlutenExecutorEndpoint = _
+
   /**
    * Initialize the executor plugin.
    */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     val conf = ctx.conf()
+    executorEndpoint = new GlutenExecutorEndpoint(ctx.executorID(), conf)
     // Must set the 'spark.memory.offHeap.size' value to native memory malloc
     if (!conf.getBoolean("spark.memory.offHeap.enabled", false) ||
       (JavaUtils.byteStringAsBytes(

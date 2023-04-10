@@ -109,6 +109,7 @@ case class ClickHouseBuildSideRelation(
             new Iterator[InternalRow] {
               var rowId = 0
               val row = new UnsafeRow(batch.numColumns())
+              println("------------------ read row: " + batch.numRows())
               var closed = false
 
               override def hasNext: Boolean = {

@@ -30,7 +30,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.CollectList
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
-import org.apache.spark.sql.execution.exchange.Exchange
+import org.apache.spark.sql.execution.exchange.{Exchange, ReusedExchangeExec}
 
 import com.google.protobuf.Any
 
@@ -109,11 +109,13 @@ case class CHHashAggregateExecTransformer(
       val typeList = new util.ArrayList[TypeNode]()
       val nameList = new util.ArrayList[String]()
       // 1. When the child is file scan rdd ( in case of separating file scan )
-      // 2. When the child is Union all operator
+      // 2. When the child is ReusedExchange and AQE is off
+      // 3. When the child is Union all operator
       val (inputAttrs, outputAttrs) =
         if (
           (child.find(_.isInstanceOf[Exchange]).isEmpty
-            && child.find(_.isInstanceOf[QueryStageExec]).isEmpty)
+            && child.find(_.isInstanceOf[QueryStageExec]).isEmpty
+            && child.find(_.isInstanceOf[ReusedExchangeExec]).isEmpty)
           || (child.isInstanceOf[InputAdapter]
             && child.asInstanceOf[InputAdapter].child.isInstanceOf[UnionExecTransformer])
         ) {

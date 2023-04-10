@@ -27,6 +27,7 @@ class SoftAffinityListener extends SparkListener with Logging {
   override def onExecutorAdded(executorAdded: SparkListenerExecutorAdded): Unit = {
     val execId = executorAdded.executorId
     val host = executorAdded.executorInfo.executorHost
+    logError(s"------------- onExecutorAdded: ${execId} : ${host}")
     SoftAffinityManager.handleExecutorAdded((execId, host))
   }
 

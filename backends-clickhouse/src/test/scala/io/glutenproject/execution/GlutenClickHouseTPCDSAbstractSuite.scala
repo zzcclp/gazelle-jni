@@ -64,7 +64,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
 
   protected val excludedTpcdsQueries: Set[String] = Set(
     "q4",
-    "q5",
+    // "q5",
     "q8",
     "q14a",
     "q14b",
@@ -75,7 +75,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     "q24b",
     "q27",
     "q31",
-    "q32",
+    // "q32",
     "q36",
     "q39a",
     "q39b",

@@ -31,13 +31,14 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.substrait.proto.JoinRel
+import org.apache.spark.listeners.GlutenSQLAppStatusListener
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -438,6 +439,18 @@ abstract class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
 
     val context = BroadCastHashJoinContext(
       buildKeyExprs, joinType, buildPlan.output, buildHashTableId)
+
+    val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
+    if (executionId != null) {
+      GlutenSQLAppStatusListener.executionIdToBroadcastValue
+        .computeIfAbsent(executionId.toLong, _ => {
+          new util.ArrayList[String]()
+        })
+      GlutenSQLAppStatusListener.executionIdToBroadcastValue
+        .get(executionId.toLong).add(buildHashTableId)
+    } else {
+      logError(s"-------------------- executionId is null")
+    }
 
     val buildRDD = if (streamedRDD.isEmpty) {
       // Stream plan itself contains scan and has no input rdd,

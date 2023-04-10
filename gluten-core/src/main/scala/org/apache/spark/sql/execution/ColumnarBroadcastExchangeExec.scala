@@ -74,6 +74,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
           longMetric("numOutputRows"),
           longMetric("dataSize"))
         val beforeBroadcast = System.nanoTime()
+        println("------------------ broadcast relation: " + relation.toString)
 
         longMetric("collectTime") += NANOSECONDS.toMillis(beforeBroadcast - beforeCollect)
 
