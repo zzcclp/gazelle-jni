@@ -34,7 +34,7 @@ trait BuildSideRelation extends Serializable {
    * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
    * @return
    */
-  def transform(key: Expression): Array[InternalRow]
+  def transform(buildKeys: Seq[Expression], index: Int): Array[InternalRow]
 
   /**
    * Returns a read-only copy of this, to be safely used in current thread.

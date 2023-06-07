@@ -22,9 +22,7 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder}
-
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BoundReference, Expression}
-
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BoundReference, Expression}
 import com.google.common.collect.Lists
 
 import java.util
@@ -52,6 +50,20 @@ object PlanNodesUtil {
 
     // replace attribute to BoundRefernce according to the output
     val newBoundRefKey = key.transformDown {
+      case a: Alias =>
+        val columnInOutput = output.zipWithIndex.filter {
+          p: (Attribute, Int) => p._1.exprId == a.exprId || p._1.name == a.name
+        }
+        if (columnInOutput.isEmpty) {
+          throw new IllegalStateException(
+            s"Key $a not found from build side relation output: $output")
+        }
+        if (columnInOutput.size != 1) {
+          throw new IllegalStateException(
+            s"More than one key $a found from build side relation output: $output")
+        }
+        val boundReference = columnInOutput.head
+        BoundReference(boundReference._2, boundReference._1.dataType, boundReference._1.nullable)
       case expression: AttributeReference =>
         val columnInOutput = output.zipWithIndex.filter {
           p: (Attribute, Int) => p._1.exprId == expression.exprId || p._1.name == expression.name
@@ -82,7 +94,7 @@ object PlanNodesUtil {
     PlanBuilder.makePlan(
       context,
       Lists.newArrayList(
-        RelBuilder.makeProjectRel(readRel, projExprNodeList, context, operatorId, output.size)),
+        RelBuilder.makeProjectRel(readRel, projExprNodeList, context, operatorId)),
       Lists.newArrayList(
         ConverterUtils.genColumnNameWithExprId(ConverterUtils.getAttrFromExpr(key)))
     )

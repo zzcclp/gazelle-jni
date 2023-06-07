@@ -21,7 +21,8 @@ import io.glutenproject.execution.{ColumnarToRowExecBase, RowToColumnarExecBase}
 import io.glutenproject.extension.GlutenPlan
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, QueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec, QueryStageExec}
+import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
 /** attention: if AQE is enable,This method will only be executed correctly after the execution plan
  * is fully determined
@@ -46,6 +47,17 @@ object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
       case AdaptiveSparkPlanExec(_, _, _, _, _) =>
         true
       case _: LimitExec =>
+        true
+      // for ut
+      case _: RangeExec =>
+        true
+      case _: ObjectConsumerExec =>
+        true
+      case _: LocalTableScanExec =>
+        true
+      case _: ReusedExchangeExec =>
+        true
+      case _: ColumnarAQEShuffleReadExec =>
         true
       case _ =>
         false

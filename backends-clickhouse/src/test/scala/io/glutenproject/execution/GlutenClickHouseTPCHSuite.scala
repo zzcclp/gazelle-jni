@@ -16,12 +16,11 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.utils.FallbackUtil
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Row, TestUtils}
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
-import org.apache.spark.sql.types.{Decimal, DecimalType, StructType}
-
-import scala.collection.Seq
+import org.apache.spark.sql.types.{DecimalType, StructType}
 
 class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
@@ -181,6 +180,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |select count(*) from lineitem
                          |""".stripMargin)
     val result = df.collect()
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'select count(*)'") {
@@ -190,6 +191,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 275436L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'select global/local limit'") {
@@ -200,6 +203,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result.size == 10)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'function explode(array)'") {
@@ -210,6 +215,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 1201144L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'function posexplode(array)'") {
@@ -220,6 +227,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 1201144L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'lateral view explode(array)'") {
@@ -231,6 +240,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 2402288L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'lateral view posexplode(array)'") {
@@ -242,6 +253,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 2402288L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'function explode(map)'") {
@@ -253,6 +266,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 1201144L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'function posexplode(map)'") {
@@ -265,6 +280,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                   |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 1201144L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'lateral view explode(map)'") {
@@ -281,6 +298,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 2402288L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'lateral view posexplode(map)'") {
@@ -298,6 +317,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                   |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 2402288L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'select count(1)'") {
@@ -307,6 +328,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 227302L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'select count(1)' with empty columns to read") {
@@ -315,6 +338,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 600572L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'select count(*)' with empty columns to read") {
@@ -323,6 +348,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 600572L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'select sum(2)' with empty columns to read") {
@@ -331,6 +358,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 1201144L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'select 1' with empty columns to read") {
@@ -340,6 +369,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     val result = df.collect()
     assert(result.size == 2)
     assert(result(0).getInt(0) == 1 && result(1).getInt(0) == 1)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'order by'") {
@@ -352,6 +383,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     val expected =
       Seq(Row(465.0), Row(67.0), Row(160.0), Row(371.0), Row(732.0), Row(138.0), Row(785.0))
     TestUtils.compareAnswers(result, expected)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'order by' two keys") {
@@ -370,6 +403,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     val expected =
       Seq(Row(0, "ALGERIA", 0), Row(1, "ARGENTINA", 1), Row(2, "BRAZIL", 1))
     TestUtils.compareAnswers(result, expected)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'order by limit'") {
@@ -385,6 +420,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     val result = df.collect()
     val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
     TestUtils.compareAnswers(result, expectedResult)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'function space'") {
@@ -403,6 +440,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getString(1).equals(""))
     assert(result(0).getString(2) == null)
     assert(result(0).getString(3).equals(" "))
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'ISSUE https://github.com/Kyligence/ClickHouse/issues/225'") {
@@ -434,6 +473,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
         Seq(new java.math.BigDecimal("123456789.123456789012345678901234567"))
       ))
     TestUtils.compareAnswers(result, expectedResult)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test decimal128") {
@@ -455,6 +496,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     TestUtils.compareAnswers(
       df2.select("a").collect(),
       Seq(Row(new java.math.BigDecimal("123456789.123456789012345678901234566"))))
+    assert(!FallbackUtil.isFallback(df2.queryExecution.executedPlan),
+      s"there is fallback in: ${df2.queryExecution.executedPlan}")
   }
 
   test("test 'sum/count/max/min from empty table'") {
@@ -469,6 +512,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).isNullAt(1))
     assert(result(0).isNullAt(2))
     assert(result(0).isNullAt(3))
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'function json_tuple'") {
@@ -484,6 +529,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getString(1).equals("world1"))
     assert(result(0).getString(2).equals("[\"a\",\"b\"]"))
     assert(result(0).isNullAt(3))
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   ignore("TPCH Q21") {

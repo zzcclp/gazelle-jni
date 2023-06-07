@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.utils.FallbackUtil
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 
@@ -180,6 +181,8 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
                          |select count(*) from lineitem
                          |""".stripMargin)
     val result = df.collect()
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'select count(*)'") {
@@ -189,6 +192,8 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 275436L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test 'select count(1)'") {
@@ -198,6 +203,8 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 227302L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   ignore("TPCH Q21") {

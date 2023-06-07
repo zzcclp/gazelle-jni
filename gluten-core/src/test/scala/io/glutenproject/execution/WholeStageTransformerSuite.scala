@@ -17,6 +17,7 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.utils.FallbackUtil
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
 import org.apache.spark.sql.test.SharedSparkSession
@@ -25,7 +26,6 @@ import org.apache.spark.sql.types.{DoubleType, StructType}
 import java.io.File
 import scala.io.Source
 import scala.reflect.ClassTag
-
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 
@@ -139,6 +139,8 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
         compareResultStr(sqlNum, result, queriesResults)
       }
     }
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
     customCheck(df)
   }
 
@@ -147,6 +149,8 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
                             (customCheck: DataFrame => Unit): Seq[Row] = {
     val df = spark.sql(sql)
     val result = df.collect()
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
     customCheck(df)
     result
   }
@@ -218,7 +222,11 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     val df = spark.sql(sqlStr)
     if (compareResult) {
       checkAnswer(df, expected)
+    } else {
+      df.collect()
     }
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
     customCheck(df)
     df
   }

@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.utils.FallbackUtil
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
 import org.apache.spark.sql.execution.{ColumnarSubqueryBroadcastExec, ReusedSubqueryExec}
@@ -67,6 +68,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 550458L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan))
   }
 
   test("test reading from partitioned table with partition column filter") {
@@ -78,6 +80,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getDouble(0) == 379.21313271604936)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan))
   }
 
   test("test select avg(int), avg(long)") {
@@ -86,9 +89,11 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
         |select avg(cs_item_sk), avg(cs_order_number)
         |  from catalog_sales
         |""".stripMargin
-    val result = spark.sql(testSql).collect()
+    val df = spark.sql(testSql)
+    val result = df.collect()
     assert(result(0).getDouble(0) == 8998.463336886734)
     assert(result(0).getDouble(1) == 80037.12727449503)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan))
   }
 
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {

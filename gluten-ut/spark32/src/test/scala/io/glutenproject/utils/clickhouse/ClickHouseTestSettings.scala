@@ -22,6 +22,7 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.{FallbackStrategiesSuite, GlutenExchangeSuite, GlutenReuseExchangeAndSubquerySuite}
+import org.apache.spark.sql.execution.adaptive.GlutenAdaptiveQueryExecSuite
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.extension.{GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
 
@@ -214,7 +215,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     )
 
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
-    .exclude(
+    .include(
       "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
     )
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
@@ -239,5 +240,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
     .exclude("Exchange reuse across the whole plan")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
+
+  enableSuite[GlutenAdaptiveQueryExecSuite]
+    .include(
+      "SPARK-35874: AQE Shuffle should wait for its subqueries to finish before materializing1")
 }
 

@@ -36,7 +36,7 @@ case class ClickHouseBuildSideRelation(
     mode: BroadcastMode,
     output: Seq[Attribute],
     batches: Array[Array[Byte]],
-    newBuildKeys: Seq[Expression] = Seq.empty)
+    newBuildKeys: Seq[Expression])
   extends BuildSideRelation
   with Logging {
 
@@ -75,8 +75,9 @@ case class ClickHouseBuildSideRelation(
    * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
    * @return
    */
-  override def transform(key: Expression): Array[InternalRow] = {
+  override def transform(buildKeys: Seq[Expression], index: Int): Array[InternalRow] = {
     val allBatches = batches.flatten
+    val key = newBuildKeys(index)
     // native block reader
     val input = new ByteArrayInputStream(allBatches)
     val blockReader = new CHStreamReader(input, customizeBufferSize)

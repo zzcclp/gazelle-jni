@@ -48,9 +48,10 @@ case class ColumnarBuildSideRelation(mode: BroadcastMode,
    * Transform columnar broadcast value to Array[InternalRow] by key and distinct.
    * @return
    */
-  override def transform(key: Expression): Array[InternalRow] = {
+  override def transform(buildKeys: Seq[Expression], index: Int): Array[InternalRow] = {
     // convert batches: Array[Array[Byte]] to Array[InternalRow] by key and distinct.
     val batchIter = ArrowUtil.convertFromNetty(output, batches)
+    val key = buildKeys(index)
     // Convert columnar to Row.
     batchIter.flatMap(batch => {
       if (batch.numRows == 0) {

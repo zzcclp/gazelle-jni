@@ -18,19 +18,16 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.benchmarks.GenTPCDSTableScripts
-import io.glutenproject.utils.UTSystemParameters
-
+import io.glutenproject.utils.{FallbackUtil, UTSystemParameters}
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.types.{StructField, StructType}
-
 import org.apache.commons.io.FileUtils
 
 import java.io.File
 import java.util
-
 import scala.io.Source
 import scala.language.postfixOps
 
@@ -207,7 +204,12 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
           .collect()
       }
       checkAnswer(df, expectedAnswer)
+    } else {
+      // If it does not need to compare results, execute the sql to make AQE execution
+      df.collect()
     }
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
     customCheck(df)
   }
 }

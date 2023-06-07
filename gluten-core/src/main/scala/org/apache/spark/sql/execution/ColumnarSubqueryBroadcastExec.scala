@@ -83,7 +83,7 @@ case class ColumnarSubqueryBroadcastExec(name: String,
           exchangeChild.isInstanceOf[AdaptiveSparkPlanExec]) {
           // transform broadcasted columnar value to Array[InternalRow] by key
           exchangeChild.executeBroadcast[BuildSideRelation].value
-            .transform(buildKeys(index)).distinct
+            .transform(buildKeys, index).distinct
         } else {
           val broadcastRelation = exchangeChild.executeBroadcast[HashedRelation]().value
           val (iter, expr) = if (broadcastRelation.isInstanceOf[LongHashedRelation]) {

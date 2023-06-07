@@ -64,6 +64,8 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 100000L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test reading from partitioned table") {
@@ -74,6 +76,8 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 550458L)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test reading from partitioned table with partition column filter") {
@@ -85,6 +89,8 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getDouble(0) == 379.21313271604936)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test select avg(int), avg(long)") {
@@ -93,9 +99,12 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |select avg(cs_item_sk), avg(cs_order_number)
         |  from catalog_sales
         |""".stripMargin
-    val result = spark.sql(testSql).collect()
+    val df = spark.sql(testSql)
+    val result = df.collect()
     assert(result(0).getDouble(0) == 8998.463336886734)
     assert(result(0).getDouble(1) == 80037.12727449503)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test union all operator with two tables") {
@@ -107,8 +116,11 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |  select ws_sold_date_sk as date_sk from web_sales
         |)
         |""".stripMargin
-    val result = spark.sql(testSql).collect()
+    val df = spark.sql(testSql)
+    val result = df.collect()
     assert(result(0).getLong(0) == 791809)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test union all operator with three tables") {
@@ -123,8 +135,11 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |  )
         |)
         |""".stripMargin
-    val result = spark.sql(testSql).collect()
+    val df = spark.sql(testSql)
+    val result = df.collect()
     assert(result(0).getLong(0) == 791909)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test union operator with two tables") {
@@ -136,8 +151,11 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |  select ws_sold_date_sk as date_sk from web_sales
         |)
         |""".stripMargin
-    val result = spark.sql(testSql).collect()
+    val df = spark.sql(testSql)
+    val result = df.collect()
     assert(result(0).getLong(0) == 73049)
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test(
@@ -169,6 +187,8 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         .asInstanceOf[InputAdapter]
         .child
         .isInstanceOf[CHColumnarToRowExec])
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("test fallbackutils") {
@@ -190,7 +210,8 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |""".stripMargin
 
     val df = spark.sql(testSql)
-    assert(FallbackUtil.isFallback(df.queryExecution.executedPlan))
+    assert(!FallbackUtil.isFallback(df.queryExecution.executedPlan),
+      s"there is fallback in: ${df.queryExecution.executedPlan}")
   }
 
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {
