@@ -396,6 +396,21 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           u.failOnError,
           u
         )
+      case truncDate: TruncDate =>
+        new TruncDateTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(truncDate.format, attributeSeq),
+          replaceWithExpressionTransformer(truncDate.date, attributeSeq),
+          truncDate
+        )
+      case truncTimestamp: TruncTimestamp =>
+        new TruncTimestampTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(truncTimestamp.format, attributeSeq),
+          replaceWithExpressionTransformer(truncTimestamp.timestamp, attributeSeq),
+          truncTimestamp.timeZoneId,
+          truncTimestamp
+        )
       case r: RegExpReplace =>
         new RegExpReplaceTransformer(
           substraitExprName.get,

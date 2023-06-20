@@ -179,7 +179,11 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS = {
     {"datediff", "dateDiff"},
     {"second", "toSecond"},
     {"add_months", "addMonths"},
-    {"trunc", ""}, /// dummy mapping
+    {"trunc", "dateTrunc"},
+    {"date_trunc", "dateTrunc"},
+    {"floor_datetime", "dateTrunc"},
+    {"timestamp_add", "dateAdd"},
+    {"timestamp_diff", "dateDiff"},
 
     // array functions
     {"array", "array"},

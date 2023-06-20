@@ -18,14 +18,13 @@
 package io.glutenproject.expression
 
 import com.google.common.collect.Lists
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.`type`.TypeBuilder
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, StringLiteralNode}
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
-import org.apache.spark.internal.Logging
-import io.glutenproject.substrait.expression.StringLiteralNode
 
 /**
  * The extract trait for 'GetDateField' from Date
@@ -163,6 +162,83 @@ class UnixTimestampTransformer(substraitExprName: String, timeExp: ExpressionTra
     val transformer = ToUnixTimestampTransformer(substraitExprName, timeExp, format,
       timeZoneId, failOnError, toUnixTimestamp)
     transformer.doTransform(args)
+  }
+}
+
+class TruncDateTransformer(
+  substraitExprName: String,
+  format: ExpressionTransformer,
+  date: ExpressionTransformer,
+  original: TruncDate) extends ExpressionTransformer with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val dateNode = date.doTransform(args)
+    val formatNode = format.doTransform(args)
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    // wrap in lower: lower(format)
+    val lowerFuncId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName("lower", Seq(StringType), FunctionConfig.OPT))
+    val lowerExprNodes = Lists.newArrayList[ExpressionNode](formatNode)
+    val lowerTypeNode = TypeBuilder.makeString(original.nullable)
+    val lowerFormatNode =
+      ExpressionBuilder.makeScalarFunction(lowerFuncId, lowerExprNodes, lowerTypeNode)
+
+    val dataTypes = Seq(original.format.dataType, original.date.dataType)
+
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(substraitExprName, dataTypes))
+
+    val expressionNodes = new java.util.ArrayList[ExpressionNode]()
+    expressionNodes.add(lowerFormatNode)
+    expressionNodes.add(dateNode)
+
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class TruncTimestampTransformer(
+  substraitExprName: String,
+  format: ExpressionTransformer,
+  timestamp: ExpressionTransformer,
+  timeZoneId: Option[String] = None,
+  original: TruncTimestamp)
+  extends ExpressionTransformer with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val timestampNode = timestamp.doTransform(args)
+    val formatNode = format.doTransform(args)
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    // wrap in lower: lower(format)
+    val lowerFuncId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName("lower", Seq(StringType), FunctionConfig.OPT))
+    val lowerExprNodes = Lists.newArrayList[ExpressionNode](formatNode)
+    val lowerTypeNode = TypeBuilder.makeString(original.nullable)
+    val lowerFormatNode =
+      ExpressionBuilder.makeScalarFunction(lowerFuncId, lowerExprNodes, lowerTypeNode)
+
+    val dataTypes = if (timeZoneId != None) {
+      Seq(original.format.dataType, original.timestamp.dataType, StringType)
+    } else {
+      Seq(original.format.dataType, original.timestamp.dataType)
+    }
+
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(substraitExprName, dataTypes))
+
+    val expressionNodes = new java.util.ArrayList[ExpressionNode]()
+    expressionNodes.add(lowerFormatNode)
+    expressionNodes.add(timestampNode)
+    if (timeZoneId != None) {
+      expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
+    }
+
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 

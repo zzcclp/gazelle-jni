@@ -968,7 +968,7 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
         else
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "The first arg of spark extract function is wrong.");
     }
-    else if (function_name == "trunc")
+    /* else if (function_name == "trunc")
     {
         if (args.size() != 2)
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "Spark function trunc requires two args, function:{}", function.ShortDebugString());
@@ -988,7 +988,7 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
             ch_function_name = "toStartOfWeek";
         else
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "The second arg of spark trunc function is wrong, value:{}", field_value);
-    }
+    } */
     else if (function_name == "sha2")
     {
         if (args.size() != 2)
@@ -1529,7 +1529,8 @@ void SerializedPlanParser::parseFunctionArguments(
             parsed_args.emplace_back(&mode_node);
         }
     }
-    else if (startsWith(function_signature, "trunc:") || startsWith(function_signature, "sha2:"))
+    // else if (startsWith(function_signature, "trunc:") || startsWith(function_signature, "sha2:"))
+    else if (startsWith(function_signature, "sha2:"))
     {
         /// Skip the last arg of trunc in substrait
         for (int i = 0; i < args.size() - 1; i++)
