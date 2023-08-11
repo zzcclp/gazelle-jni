@@ -48,4 +48,9 @@ REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(Ntile, ntile, ntile)
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(PercentRank, percent_rank, percent_rank)
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(CumeDist, cume_dist, cume_dist)
 
+REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(KeBitmapOr, ke_bitmap_or, ke_bitmap_or)
+REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(KeBitmapOrCardinality, ke_bitmap_or_cardinality, ke_bitmap_or_cardinality)
+REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(KeBitmapOrData, ke_bitmap_or_data, ke_bitmap_or_data)
+REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(KeBitmapAndValue, ke_bitmap_and_value, ke_bitmap_and_value)
+REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(KeBitmapAndIds, ke_bitmap_and_ids, ke_bitmap_and_ids)
 }

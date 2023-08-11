@@ -180,6 +180,12 @@
       <version>1.11.901</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.roaringbitmap</groupId>
+      <artifactId>RoaringBitmap</artifactId>
+      <version>0.9.15</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>

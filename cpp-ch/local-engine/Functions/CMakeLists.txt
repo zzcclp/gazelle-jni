@@ -39,6 +39,7 @@ list (APPEND PRIVATE_LIBS
         ch_contrib::cityhash
         ch_contrib::farmhash
         ch_contrib::xxHash
+        ch_contrib::roaring
         OpenSSL::SSL
 )
 

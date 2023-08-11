@@ -50,6 +50,9 @@
 #include <Common/JNIUtils.h>
 #include <Common/QueryContext.h>
 
+#include <time.h>
+#include "AggregateFunctions/KeAggregateBitmapData.h"
+
 #ifdef __cplusplus
 
 static DB::ColumnWithTypeAndName getColumnFromColumnVector(JNIEnv * /*env*/, jobject /*obj*/, jlong block_address, jint column_position)
@@ -200,6 +203,65 @@ JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
     env->DeleteGlobalRef(local_engine::SparkRowToCHColumn::spark_row_interator_class);
     env->DeleteGlobalRef(local_engine::ReservationListenerWrapper::reservation_listener_class);
     env->DeleteGlobalRef(native_metrics_class);
+}
+
+JNIEXPORT jlong
+Java_org_apache_spark_sql_udaf_RoaringBitmapJniTest_getRoaringBitmapCardinality(JNIEnv * env, jclass /*clazz*/, jbyteArray bitmap_data)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    clock_t start, end;
+    start = clock();
+    jsize plan_buf_size = env->GetArrayLength(bitmap_data);
+    jbyte * plan_buf_addr = env->GetByteArrayElements(bitmap_data, nullptr);
+    auto charT = reinterpret_cast<char *>(plan_buf_addr);
+
+    auto charBuff = std::make_unique<local_engine::ReadBufferFromJavaBitmap>(charT, plan_buf_size);
+    auto bitmap = std::make_unique<local_engine::KeRoaringBitmapData<Int64>>();
+    bitmap->read(*charBuff);
+    auto re = bitmap->size();
+    env->ReleaseByteArrayElements(bitmap_data, plan_buf_addr, JNI_ABORT);
+    end = clock();
+    std::cout << "time = " << double(end - start) / CLOCKS_PER_SEC << "s" << std::endl;
+    return re;
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
+JNIEXPORT void Java_org_apache_spark_sql_udaf_RoaringBitmapJniTest_testCRoaringBitmap(JNIEnv * env, jclass /*clazz*/)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    int size = 1000;
+    local_engine::KeRoaringBitmapData<Int64> bitmap_array[size];
+    for (int i = 0; i < size; i++)
+    {
+        // UInt64 s = i * 100;
+        UInt64 s = 0;
+        UInt64 e = (i + 1) * 100;
+        for (UInt64 j = s; j < e; j++)
+        {
+            if ((j % 3) == 0)
+            {
+                bitmap_array[i].add(static_cast<Int64>(j / 3));
+            }
+        }
+    }
+
+    local_engine::KeRoaringBitmapData<Int64> result;
+    UInt64 or_time = 0;
+    Stopwatch time;
+    time.start();
+    for (int j = 0; j < 1000; j++)
+    {
+        for (int i = 0; i < size; i++)
+        {
+            result.merge(bitmap_array[i]);
+        }
+    }
+    or_time += time.elapsedNanoseconds();
+    time.stop();
+
+    std::cout << "gluten or time: " << or_time << " cardinality: " << result.size() << std::endl;
+
+    LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
 JNIEXPORT void Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jobject, jbyteArray conf_plan)
