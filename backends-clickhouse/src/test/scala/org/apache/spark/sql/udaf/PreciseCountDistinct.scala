@@ -148,7 +148,7 @@ case class PreciseCountDistinct(
     inputAggBufferOffset: Int = 0)
   extends BasicPreciseCountDistinct(child, mutableAggBufferOffset, inputAggBufferOffset) {
 
-  def this(child: Expression) = this(child, LongType, 0, 0)
+  def this(child: Expression) = this(child, BinaryType, 0, 0)
 
   def this(child: Expression, dataType: DataType) = this(child, dataType, 0, 0)
 

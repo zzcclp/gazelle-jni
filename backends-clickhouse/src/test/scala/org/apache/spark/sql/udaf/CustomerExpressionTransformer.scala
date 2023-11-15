@@ -24,6 +24,7 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, AggregateMode, Final, Partial, TypedImperativeAggregate}
+import org.apache.spark.sql.types.{BinaryType, DataType, LongType}
 
 import com.google.common.collect.Lists
 import org.roaringbitmap.longlong.Roaring64NavigableMap
@@ -59,7 +60,7 @@ case class CustomerExpressionTransformer() extends ExpressionExtensionTrait {
   def expressionSigList: Seq[Sig] = Seq(
     Sig[PreciseCardinality]("ke_bitmap_cardinality"),
     Sig[PreciseCountDistinctDecode]("ke_bitmap_cardinality"),
-    Sig[ReusePreciseCountDistinct]("ke_bitmap_or"),
+    Sig[ReusePreciseCountDistinct]("ke_bitmap_or_data"),
     Sig[PreciseCountDistinctAndValue]("ke_bitmap_and_value"),
     Sig[PreciseCountDistinctAndArray]("ke_bitmap_and_ids"),
     Sig[PreciseCountDistinct]("ke_bitmap_or_cardinality")
@@ -123,5 +124,30 @@ case class CustomerExpressionTransformer() extends ExpressionExtensionTrait {
             throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
     }
+  }
+
+  /** Get the custom agg function substrait name and the input types of the child */
+  override def buildCustomAggregateFunction(
+      aggregateFunc: AggregateFunction): (Option[String], Seq[DataType]) = {
+    val substraitAggFuncName = aggregateFunc match {
+      case countDistinct: PreciseCountDistinct =>
+        countDistinct.dataType match {
+          case LongType =>
+            Some("ke_bitmap_or_cardinality")
+          case BinaryType =>
+            Some("ke_bitmap_or_data")
+          case _ =>
+            throw new UnsupportedOperationException(
+              s"Aggregate function ${aggregateFunc.getClass} does not support the data type " +
+                s"${countDistinct.dataType}.")
+        }
+      case _ =>
+        extensionExpressionsMapping.get(aggregateFunc.getClass)
+    }
+    if (substraitAggFuncName.isEmpty) {
+      throw new UnsupportedOperationException(
+        s"Aggregate function ${aggregateFunc.getClass} is not supported.")
+    }
+    (substraitAggFuncName, aggregateFunc.children.map(child => child.dataType))
   }
 }

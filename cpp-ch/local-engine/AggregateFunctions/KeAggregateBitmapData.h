@@ -44,22 +44,6 @@ namespace local_engine
 {
 using namespace DB;
 
-static constexpr size_t BITMAP_DATA_BUFF_SIZE = 4096;
-
-struct bitmap_buffer
-{
-    bitmap_buffer()
-    {
-        bitmap_char_buff = std::shared_ptr<char[]>(new char[BITMAP_DATA_BUFF_SIZE]);
-        bitmap_char_buff_len = BITMAP_DATA_BUFF_SIZE;
-    }
-
-    std::shared_ptr<char[]> bitmap_char_buff;
-    size_t bitmap_char_buff_len;
-
-    ~bitmap_buffer() = default;
-};
-
 /**
   * Roaring bitmap data.
   * For a description of the roaring_bitmap_t, see: https://github.com/RoaringBitmap/CRoaring

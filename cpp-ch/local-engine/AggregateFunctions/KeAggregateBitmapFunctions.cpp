@@ -36,25 +36,6 @@ namespace local_engine
 using namespace DB;
 
 AggregateFunctionPtr
-createKeAggregateBitmapOrFunction(const std::string & name, const DataTypes & argument_types, const Array & parameters, const Settings *)
-{
-    assertNoParameters(name, parameters);
-    assertUnary(name, argument_types);
-    DataTypePtr argument_type_ptr = argument_types[0];
-    AggregateFunctionPtr res(
-        new local_engine::KeAggregateBitmapOr<std::string, local_engine::KeAggregateBitmapData<Int64>>(argument_type_ptr));
-
-    if (!res)
-        throw Exception(
-            ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
-            "Illegal type {} of argument for aggregate function {}",
-            argument_types[0]->getName(),
-            name);
-
-    return res;
-}
-
-AggregateFunctionPtr
 createKeAggregateBitmapOrCardinalityFunction(const std::string & name, const DataTypes & argument_types, const Array & parameters, const Settings *)
 {
     assertNoParameters(name, parameters);
@@ -80,7 +61,7 @@ createKeAggregateBitmapOrDataFunction(const std::string & name, const DataTypes 
     assertUnary(name, argument_types);
     DataTypePtr argument_type_ptr = argument_types[0];
     AggregateFunctionPtr res(
-        new local_engine::KeAggregateBitmapOr<Int64, local_engine::KeAggregateBitmapData<Int64>>(argument_type_ptr));
+        new local_engine::KeAggregateBitmapOr<std::string, local_engine::KeAggregateBitmapData<Int64>>(argument_type_ptr));
 
     if (!res)
         throw Exception(
@@ -133,7 +114,6 @@ AggregateFunctionPtr createKeAggregateBitmapAndIdsFunction(
 void registerKeAggregateFunctionsBitmap(AggregateFunctionFactory & factory)
 {
     AggregateFunctionProperties properties = { .returns_default_when_only_null = true };
-    factory.registerFunction("ke_bitmap_or", {createKeAggregateBitmapOrFunction, properties}, AggregateFunctionFactory::CaseInsensitive);
     factory.registerFunction("ke_bitmap_or_cardinality", {createKeAggregateBitmapOrCardinalityFunction, properties}, AggregateFunctionFactory::CaseInsensitive);
     factory.registerFunction("ke_bitmap_or_data", {createKeAggregateBitmapOrDataFunction, properties}, AggregateFunctionFactory::CaseInsensitive);
     factory.registerFunction("ke_bitmap_and_value", { createKeAggregateBitmapAndValueFunction, properties}, AggregateFunctionFactory::CaseInsensitive);

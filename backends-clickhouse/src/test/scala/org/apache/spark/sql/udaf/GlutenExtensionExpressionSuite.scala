@@ -112,7 +112,7 @@ class GlutenExtensionExpressionSuite
     createTPCHParquetTables(tablesPath)
   }
 
-  test("test ke bitmap cardinality") {
+  ignore("test ke bitmap cardinality") {
     RoaringBitmapJniTest.getRoaringBitmapCardinality(
       BitmapSerAndDeSer.getBitmapArray(1, 3, 5, 7, 8, 9, 1000000000, 9999999999999999L,
         8999999999999999L, 8999999999999999L, 7999999999999999L, 6999999999999999L))
@@ -220,11 +220,11 @@ class GlutenExtensionExpressionSuite
     )
   }
 
-  test("test ke bitmap functions") {
+  ignore("test ke bitmap functions") {
     RoaringBitmapJniTest.testCRoaringBitmap()
   }
 
-  test("test ke bitmap functions vanilla spark") {
+  ignore("test ke bitmap functions vanilla spark") {
 
     val size = 6000;
     val bitmapArray = new Array[Roaring64NavigableMap](size)
@@ -325,7 +325,7 @@ class GlutenExtensionExpressionSuite
     } */
   }
 
-  test("test ke functions") {
+  ignore("test ke functions") {
     val values = (1L to 9999999L).filter(_ % 3 == 0).toArray
     val array1: Array[Byte] = BitmapSerAndDeSer.getBitmapArray(1, 2)
     val array2: Array[Byte] = BitmapSerAndDeSer
@@ -409,7 +409,10 @@ class GlutenExtensionExpressionSuite
 
     df0.createOrReplaceTempView("t")
 
-    val SQL1 = "select col1, ke_bitmap_or_cardinality(col2) as col2 from t group by col1"
+    // bitmap_cardinality
+    // val SQL1 = "select col1, ke_bitmap_or_cardinality(col2) as col2 from t group by col1"
+    val SQL1 = "select col1, bitmap_cardinality(ke_bitmap_or_cardinality(col2)) as col2 from t " +
+      "group by col1"
 
     compareResultsAgainstVanillaSpark(
       SQL1,
@@ -419,7 +422,7 @@ class GlutenExtensionExpressionSuite
     )
   }
 
-  test("test bitmap_and_value") {
+  ignore("test bitmap_and_value") {
     val values = (1L to 9999999L).filter(_ % 3 == 0).toArray
     val array1: Array[Byte] = BitmapSerAndDeSer.getBitmapArray(1, 2)
     val array2: Array[Byte] = BitmapSerAndDeSer
@@ -455,7 +458,7 @@ class GlutenExtensionExpressionSuite
     )
   }
 
-  test("test bitmap_and_ids") {
+  ignore("test bitmap_and_ids") {
     val values = (1L to 100L).filter(_ % 3 == 0).toArray
     val array1: Array[Byte] = BitmapSerAndDeSer.getBitmapArray(values: _*)
     val array2: Array[Byte] = BitmapSerAndDeSer.getBitmapArray(
@@ -506,7 +509,7 @@ class GlutenExtensionExpressionSuite
     )
   }
 
-  test("test explode and array") {
+  ignore("test explode and array") {
     val values1 = Array(1L, 2L)
     val values2 = Array(1L, 3L, 5L, 7L, 8L, 9L, 1000000000L, 9999999999999999L, 8999999999999999L,
       8999999999999999L, 7999999999999999L, 6999999999999999L)

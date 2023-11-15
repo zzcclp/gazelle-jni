@@ -62,12 +62,10 @@ public:
     explicit KeAggregateBitmapOrCardinality(const DB::DataTypePtr & type)
         : IAggregateFunctionDataHelper<Data, KeAggregateBitmapOrCardinality<T, Data>>({type}, {}, createResultType())
     {
-        bitmap_buff = std::make_shared<bitmap_buffer>();
     }
 
     ~KeAggregateBitmapOrCardinality() override
     {
-        bitmap_buff.reset();
     }
 
     String getName() const override { return "ke_bitmap_or_cardinality"; }
@@ -146,9 +144,6 @@ public:
     {
         assert_cast<ColumnVector<T> &>(to).getData().push_back(static_cast<T>(this->data(place).roaring_bitmap.size()));
     }
-
-private:
-    std::shared_ptr<bitmap_buffer> bitmap_buff;
 };
 
 template <typename T, typename Data>
