@@ -284,6 +284,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           i)
       case s: org.apache.spark.sql.execution.ScalarSubquery =>
         ScalarSubqueryTransformer(s.plan, s.exprId, s)
+      case runtimeFilterExpression: RuntimeFilterExpression =>
+        replaceWithExpressionTransformer(runtimeFilterExpression.child, attributeSeq)
       case c: Cast =>
         // Add trim node, as necessary.
         val newCast =

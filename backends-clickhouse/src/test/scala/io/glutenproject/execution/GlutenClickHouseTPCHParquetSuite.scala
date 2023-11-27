@@ -1760,7 +1760,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         | ) t1
         |) t2 where rank = 1
     """.stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql, true, { _ => }, noFallBack = false)
   }
 
   test("GLUTEN-1874 not null in both streams") {
@@ -1778,7 +1778,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         | ) t1
         |) t2 where rank = 1
     """.stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql, true, { _ => }, noFallBack = false)
   }
 
   test("GLUTEN-2095: test cast(string as binary)") {

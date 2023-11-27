@@ -496,6 +496,8 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
         EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, child)
+      case inputAdapter: InputAdapter =>
+        new ColumnarInputAdapter(replaceWithTransformerPlan(inputAdapter.child))
       case p =>
         logDebug(s"Transformation for ${p.getClass} is currently not supported.")
         val children = plan.children.map(replaceWithTransformerPlan)

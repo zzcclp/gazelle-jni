@@ -29,8 +29,8 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
-import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil}
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
@@ -53,7 +53,9 @@ class Spark33Shims extends SparkShims {
     val list = if (GlutenConfig.getConf.enableNativeBloomFilter) {
       Seq(
         Sig[BloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
-        Sig[BloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG))
+        Sig[BloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG),
+        Sig[RuntimeFilterExpression](ExpressionNames.RUNTIME_FILTER_EXPR)
+      )
     } else Seq.empty
     list ++ Seq(
       Sig[SplitPart](ExpressionNames.SPLIT_PART),

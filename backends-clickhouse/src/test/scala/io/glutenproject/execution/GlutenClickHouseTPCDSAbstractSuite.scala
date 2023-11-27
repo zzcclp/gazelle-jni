@@ -85,6 +85,10 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
               } else {
                 (false, true)
               }
+            case k if k == 44 || k == 70 =>
+              // With Gluten Spark, there are some cases fallback
+              // when executing WindowGroupLimitExec
+              (false, false)
             case other => (true, false)
           }
           sqlNums.map((_, noFallBack._1, noFallBack._2))
