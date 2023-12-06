@@ -172,11 +172,12 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
         }
     }
 
-    const auto * selector_col = checkAndGetColumn<ColumnUInt64>(selector.get());
-    if (!selector_col)
+    auto non_const_selector = selector->convertToFullColumnIfConst();
+    const auto * res_col = checkAndGetColumn<ColumnUInt64>(non_const_selector.get());
+    if (!res_col)
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Wrong type of selector column:{} expect ColumnUInt64", selector->getName());
 
-    const DB::IColumn::Selector & partition_ids = selector_col->getData();
+    const DB::IColumn::Selector & partition_ids = res_col->getData();
     return PartitionInfo::fromSelector(partition_ids, partition_num);
 }
 
