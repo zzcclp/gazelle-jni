@@ -43,37 +43,41 @@ struct PartitionInfo
 class SelectorBuilder
 {
 public:
+    explicit SelectorBuilder(size_t partition_num_) : partition_num(partition_num_) { }
     virtual ~SelectorBuilder() = default;
     virtual PartitionInfo build(DB::Block & block) = 0;
+
+protected:
+    size_t partition_num;
 };
 
 class RoundRobinSelectorBuilder : public SelectorBuilder
 {
 public:
-    explicit RoundRobinSelectorBuilder(size_t parts_num_) : parts_num(parts_num_) { }
+    explicit RoundRobinSelectorBuilder(size_t partition_num_) : SelectorBuilder(partition_num_) { }
     ~RoundRobinSelectorBuilder() override = default;
     PartitionInfo build(DB::Block & block) override;
 
 private:
-    size_t parts_num;
     Int32 pid_selection = 0;
 };
 
 class HashSelectorBuilder : public SelectorBuilder
 {
 public:
-    explicit HashSelectorBuilder(UInt32 parts_num_, const std::vector<size_t> & exprs_index_, const std::string & hash_function_name_);
+    explicit HashSelectorBuilder(size_t partition_num_, const std::vector<size_t> & exprs_index_, const std::string & hash_function_name_);
     ~HashSelectorBuilder() override = default;
     PartitionInfo build(DB::Block & block) override;
 
 private:
-    UInt32 parts_num;
     std::vector<size_t> exprs_index;
     std::string hash_function_name;
     DB::FunctionBasePtr hash_function;
 
+    DB::FunctionBasePtr cast_uint64_function;
+
     /// Only used when hash function is sparkMurmurHash3_32
-    DB::FunctionBasePtr cast_function;
+    DB::FunctionBasePtr cast_int32_function;
     DB::FunctionBasePtr pmod_function;
 
     /// Only used when hash function is cityHash64
@@ -84,7 +88,7 @@ private:
 class RangeSelectorBuilder : public SelectorBuilder
 {
 public:
-    explicit RangeSelectorBuilder(const std::string & options_, const size_t partition_num_);
+    explicit RangeSelectorBuilder(const std::string & options_, size_t partition_num_);
     ~RangeSelectorBuilder() override = default;
     PartitionInfo build(DB::Block & block) override;
 
@@ -104,7 +108,6 @@ private:
     std::unique_ptr<substrait::Plan> projection_plan_pb;
     std::atomic<bool> has_init_actions_dag;
     std::unique_ptr<DB::ExpressionActions> projection_expression_actions;
-    size_t partition_num;
 
     void initSortInformation(Poco::JSON::Array::Ptr orderings);
     void initRangeBlock(Poco::JSON::Array::Ptr range_bounds);
