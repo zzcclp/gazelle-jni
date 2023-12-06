@@ -37,7 +37,7 @@ struct PartitionInfo
     std::vector<size_t> partition_start_points;
     size_t partition_num;
 
-    static PartitionInfo fromSelector(DB::IColumn::Selector selector, size_t partition_num);
+    static PartitionInfo fromSelector(const DB::IColumn::Selector & selector, size_t partition_num);
 };
 
 class SelectorBuilder
@@ -71,6 +71,14 @@ private:
     std::vector<size_t> exprs_index;
     std::string hash_function_name;
     DB::FunctionBasePtr hash_function;
+
+    /// Only used when hash function is sparkMurmurHash3_32
+    DB::FunctionBasePtr cast_function;
+    DB::FunctionBasePtr pmod_function;
+
+    /// Only used when hash function is cityHash64
+    DB::FunctionBasePtr modulo_function;
+    DB::FunctionBasePtr assume_notnull_function;
 };
 
 class RangeSelectorBuilder : public SelectorBuilder
