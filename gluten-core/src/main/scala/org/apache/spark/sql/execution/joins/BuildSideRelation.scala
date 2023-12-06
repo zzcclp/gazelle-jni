@@ -27,6 +27,8 @@ trait BuildSideRelation extends Serializable {
   /** Deserialized relation from broadcasted value */
   def deserialized: Iterator[ColumnarBatch]
 
+  def asByteArray: Array[Byte] = Array.emptyByteArray
+
   /**
    * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
    * @return

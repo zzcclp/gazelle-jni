@@ -23,8 +23,8 @@ import io.glutenproject.metrics.{GlutenTimeMetric, IMetrics, NativeMetrics}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
-import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
+import io.glutenproject.utils.{IteratorUtil, LogLevelUtil, SubstraitPlanPrinterUtil}
+import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CHStreamReader, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
@@ -38,6 +38,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.storage.CHShuffleReadStreamFactory
 
 import java.lang.{Long => JLong}
 import java.net.URI
@@ -270,5 +271,15 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch] = {
     CHBroadcastBuildSideCache.getOrBuildBroadcastHashTable(broadcasted, broadCastContext)
     genCloseableColumnBatchIterator(Iterator.empty)
+  }
+
+  /**
+   * Generate broadcast exchange iterator.
+   */
+  override def genBroadcastExchangeIterator(byteArray: Array[Byte]): Iterator[ColumnarBatch] = {
+    // Use CHStreamReader to read block byte array and convert to blocks.
+    val blockReader = new CHStreamReader(CHShuffleReadStreamFactory.create(byteArray, true))
+    TaskContext.get().addTaskCompletionListener[Unit](_ => blockReader.close())
+    IteratorUtil.createBatchIterator(blockReader)
   }
 }

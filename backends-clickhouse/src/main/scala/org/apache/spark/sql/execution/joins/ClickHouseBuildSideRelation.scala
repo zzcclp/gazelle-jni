@@ -40,6 +40,8 @@ case class ClickHouseBuildSideRelation(
 
   override def deserialized: Iterator[ColumnarBatch] = Iterator.empty
 
+  override def asByteArray: Array[Byte] = batches
+
   override def asReadOnlyCopy(
       broadCastContext: BroadCastHashJoinContext): ClickHouseBuildSideRelation = this
 

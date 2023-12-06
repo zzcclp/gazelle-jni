@@ -498,6 +498,15 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, child)
       case inputAdapter: InputAdapter =>
         new ColumnarInputAdapter(replaceWithTransformerPlan(inputAdapter.child))
+      case subqueryBroadcastExecProxy: SubqueryBroadcastExecProxy
+          if subqueryBroadcastExecProxy.child.isInstanceOf[SubqueryBroadcastExec] =>
+        val subqueryBroadcast = subqueryBroadcastExecProxy.child.asInstanceOf[SubqueryBroadcastExec]
+        ColumnarSubqueryBroadcastProxyExec(
+          subqueryBroadcast.name,
+          subqueryBroadcast.index,
+          subqueryBroadcast.buildKeys,
+          subqueryBroadcast.child
+        )
       case p =>
         logDebug(s"Transformation for ${p.getClass} is currently not supported.")
         val children = plan.children.map(replaceWithTransformerPlan)

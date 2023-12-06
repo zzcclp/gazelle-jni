@@ -167,6 +167,10 @@ object ColumnarCollapseTransformStages {
   val transformStageCounter = new AtomicInteger(0)
 
   def wrapInputIteratorTransformer(plan: SparkPlan): TransformSupport = {
-    InputIteratorTransformer(new ColumnarInputAdapter(plan))
+    if (plan.isInstanceOf[ColumnarInputAdapter]) {
+      InputIteratorTransformer(plan)
+    } else {
+      InputIteratorTransformer(new ColumnarInputAdapter(plan))
+    }
   }
 }
