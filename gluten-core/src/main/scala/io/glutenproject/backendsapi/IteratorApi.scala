@@ -92,8 +92,6 @@ trait IteratorApi {
       broadcasted: broadcast.Broadcast[BuildSideRelation],
       broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch]
 
-  /**
-   * Generate broadcast exchange iterator.
-   */
+  /** Generate broadcast exchange iterator. */
   def genBroadcastExchangeIterator(byteArray: Array[Byte]): Iterator[ColumnarBatch] = Iterator.empty
 }

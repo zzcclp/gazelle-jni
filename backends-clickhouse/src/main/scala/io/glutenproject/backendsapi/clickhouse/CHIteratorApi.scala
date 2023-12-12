@@ -273,9 +273,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     genCloseableColumnBatchIterator(Iterator.empty)
   }
 
-  /**
-   * Generate broadcast exchange iterator.
-   */
+  /** Generate broadcast exchange iterator. */
   override def genBroadcastExchangeIterator(byteArray: Array[Byte]): Iterator[ColumnarBatch] = {
     // Use CHStreamReader to read block byte array and convert to blocks.
     val blockReader = new CHStreamReader(CHShuffleReadStreamFactory.create(byteArray, true))

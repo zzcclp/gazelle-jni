@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.GlutenTimeMetric
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -47,8 +48,7 @@ case class ColumnarSubqueryBroadcastProxyExec(
   override def output: Seq[Attribute] = exchangeChild.output
 
   lazy val exchangeChild = child match {
-    case queryStageExec: QueryStageExec
-      if queryStageExec.plan.isInstanceOf[ReusedExchangeExec] =>
+    case queryStageExec: QueryStageExec if queryStageExec.plan.isInstanceOf[ReusedExchangeExec] =>
       queryStageExec.plan.asInstanceOf[ReusedExchangeExec].child
     case queryStageExec: QueryStageExec =>
       queryStageExec.plan
