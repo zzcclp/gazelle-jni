@@ -16,6 +16,7 @@
  */
 #pragma once
 #include <Storages/CustomStorageMergeTree.h>
+#include "Interpreters/MergeTreeTransaction.h"
 
 namespace local_engine
 {
@@ -29,7 +30,7 @@ public:
     static CustomStorageMergeTreePtr
     getStorage(StorageID id, ColumnsDescription columns, std::function<CustomStorageMergeTreePtr()> creator);
     static StorageInMemoryMetadataPtr getMetadata(StorageID id, std::function<StorageInMemoryMetadataPtr()> creator);
-    static DataPartPtr getDataPart(StorageID id, String part_name);
+    static DataPartsVector getDataParts(StorageID id, std::unordered_set<String> part_name);
     static void addDataPartToCache(StorageID id, String part_name, DataPartPtr part);
 
 private:

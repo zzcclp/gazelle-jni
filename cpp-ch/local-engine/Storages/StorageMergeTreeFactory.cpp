@@ -68,13 +68,41 @@ StorageInMemoryMetadataPtr StorageMergeTreeFactory::getMetadata(StorageID id, st
     }
     return metadata_map.at(table_name);
 }
-DataPartPtr StorageMergeTreeFactory::getDataPart(StorageID id, String part_name)
+DataPartsVector StorageMergeTreeFactory::getDataParts(StorageID id, std::unordered_set<String> part_name)
 {
+    DataPartsVector res;
     auto table_name = id.database_name + "." + id.table_name;
     std::lock_guard lock(datapart_mutex);
-    if (!datapart_map.contains(table_name) || !datapart_map[table_name].contains(part_name))
-        return nullptr;
-    return datapart_map[table_name][part_name];
+    CustomStorageMergeTreePtr storage_merge_tree;
+    {
+        std::lock_guard storage_lock(storage_map_mutex);
+        storage_merge_tree = storage_map.at(table_name);
+    }
+    std::unordered_set<String> missing_names;
+
+    if (!datapart_map.contains(table_name)) [[unlikely]]
+    {
+        datapart_map.emplace(table_name, std::unordered_map<String, DataPartPtr>());
+    }
+
+    for (const auto & name : part_name)
+    {
+        if (!datapart_map[table_name].contains(name))
+        {
+            missing_names.emplace(name);
+        }
+        else
+        {
+            res.emplace_back(datapart_map[table_name].at(name));
+        }
+    }
+    auto missing_parts = storage_merge_tree->loadDataPartsWithNames(missing_names);
+    for (const auto & part : missing_parts)
+    {
+        res.emplace_back(part);
+        datapart_map[table_name].emplace(part->name, part);
+    }
+    return res;
 }
 void StorageMergeTreeFactory::addDataPartToCache(StorageID id, String part_name, DataPartPtr part)
 {
