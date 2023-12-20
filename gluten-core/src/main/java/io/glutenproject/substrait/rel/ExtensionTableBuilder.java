@@ -32,7 +32,14 @@ public class ExtensionTableBuilder {
       List<String> partList,
       List<String> preferredLocations) {
     return new ExtensionTableNode(
-        minPartsNum, maxPartsNum, database, tableName, relativePath, orderByKey,
-        primaryKey, partList, preferredLocations);
+        minPartsNum,
+        maxPartsNum,
+        database,
+        tableName,
+        relativePath,
+        orderByKey,
+        primaryKey,
+        partList,
+        preferredLocations);
   }
 }

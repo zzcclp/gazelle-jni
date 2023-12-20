@@ -75,16 +75,12 @@ public class ExtensionTableNode implements SplitInfo {
           .append(this.orderByKey)
           .append("\n");
 
-      if (!this.orderByKey.isEmpty() && !this.orderByKey.equals("tuple()")
+      if (!this.orderByKey.isEmpty()
+          && !this.orderByKey.equals("tuple()")
           && !this.primaryKey.isEmpty()) {
-        extensionTableStr
-            .append(this.primaryKey)
-            .append("\n");
+        extensionTableStr.append(this.primaryKey).append("\n");
       }
-      extensionTableStr
-          .append(relativePath)
-          .append("\n")
-          .append(partPathList);
+      extensionTableStr.append(relativePath).append("\n").append(partPathList);
 
     } else {
       // Old: MergeTree;{database}\n{table}\n{relative_path}\n{min_part}\n{max_part}\n
