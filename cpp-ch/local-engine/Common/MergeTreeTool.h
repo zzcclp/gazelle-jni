@@ -40,11 +40,13 @@ std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_ty
 
 struct MergeTreeTable
 {
+    inline static const String TUPLE = "tuple()";
     std::string database;
     std::string table;
+    std::string order_by_key;
+    std::string primary_key;
     std::string relative_path;
-    int min_block;
-    int max_block;
+    std::unordered_set<String> parts;
 
     std::string toString() const;
 };

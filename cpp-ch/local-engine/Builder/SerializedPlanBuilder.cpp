@@ -190,13 +190,13 @@ SerializedPlanBuilder & SerializedPlanBuilder::readMergeTree(
     SchemaPtr schema)
 {
     substrait::Rel * rel = new substrait::Rel();
-    auto * read = rel->mutable_read();
-    read->mutable_extension_table()->mutable_detail()->set_value(local_engine::MergeTreeTable{
-        .database = database, .table = table, .relative_path = relative_path, .min_block = min_block, .max_block = max_block}
-                                                                     .toString());
-    read->set_allocated_base_schema(schema);
-    setInputToPrev(rel);
-    this->prev_rel = rel;
+    // auto * read = rel->mutable_read();
+    // read->mutable_extension_table()->mutable_detail()->set_value(local_engine::MergeTreeTable{
+    //     .database = database, .table = table, .relative_path = relative_path, .min_block = min_block, .max_block = max_block}
+    //                                                                  .toString());
+    // read->set_allocated_base_schema(schema);
+    // setInputToPrev(rel);
+    // this->prev_rel = rel;
     return *this;
 }
 

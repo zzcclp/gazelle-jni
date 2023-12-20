@@ -64,11 +64,32 @@ StorageInMemoryMetadataPtr StorageMergeTreeFactory::getMetadata(StorageID id, st
     if (!metadata_map.contains(table_name))
     {
         if (!metadata_map.contains(table_name))
-        {
             metadata_map.emplace(table_name, creator());
-        }
     }
     return metadata_map.at(table_name);
+}
+DataPartPtr StorageMergeTreeFactory::getDataPart(StorageID id, String part_name)
+{
+    auto table_name = id.database_name + "." + id.table_name;
+    std::lock_guard lock(datapart_mutex);
+    if (!datapart_map.contains(table_name) || !datapart_map[table_name].contains(part_name))
+        return nullptr;
+    return datapart_map[table_name][part_name];
+}
+void StorageMergeTreeFactory::addDataPartToCache(StorageID id, String part_name, DataPartPtr part)
+{
+    auto table_name = id.database_name + "." + id.table_name;
+    std::lock_guard lock(datapart_mutex);
+    if (!datapart_map.contains(table_name))
+    {
+        std::unordered_map<String, DataPartPtr> item;
+        item.emplace(part_name, part);
+        datapart_map.emplace(table_name, item);
+    }
+    else
+    {
+        datapart_map[table_name].emplace(part_name, part);
+    }
 }
 
 

@@ -87,9 +87,9 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
     auto storage_factory = StorageMergeTreeFactory::instance();
     auto metadata = buildMetaData(names_and_types_list, context);
     query_context.metadata = metadata;
-
+    StorageID table_id(merge_tree_table.database, merge_tree_table.table);
     auto storage = storage_factory.getStorage(
-        StorageID(merge_tree_table.database, merge_tree_table.table),
+        table_id,
         metadata->getColumns(),
         [&]() -> CustomStorageMergeTreePtr
         {
@@ -102,7 +102,6 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
                 "",
                 MergeTreeData::MergingParams(),
                 buildMergeTreeSettings());
-            custom_storage_merge_tree->loadDataParts(false, std::nullopt);
             return custom_storage_merge_tree;
         });
 
@@ -120,18 +119,25 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
         non_nullable_columns = non_nullable_columns_resolver.resolve();
         query_info->prewhere_info = parsePreWhereInfo(rel.filter(), header);
     }
-    auto data_parts = query_context.custom_storage_merge_tree->getAllDataPartsVector();
-    int min_block = merge_tree_table.min_block;
-    int max_block = merge_tree_table.max_block;
-    MergeTreeData::DataPartsVector selected_parts;
-    std::copy_if(
-        std::begin(data_parts),
-        std::end(data_parts),
-        std::inserter(selected_parts, std::begin(selected_parts)),
-        [min_block, max_block](MergeTreeData::DataPartPtr part)
-        { return part->info.min_block >= min_block && part->info.max_block < max_block; });
+
+    std::unordered_set<String> remain_part_names;
+    std::vector<DataPartPtr> selected_parts;
+    for (const auto & part_name: merge_tree_table.parts)
+    {
+        auto part = storage_factory.getDataPart(table_id, part_name);
+        if (part)
+            selected_parts.emplace_back(part);
+        else
+            remain_part_names.emplace(part_name);
+    }
+    auto remain_parts = query_context.custom_storage_merge_tree->loadDataPartsWithNames(remain_part_names);
+    for (const auto & part : remain_parts)
+    {
+        selected_parts.emplace_back(part);
+        storage_factory.addDataPartToCache(table_id, part->name, part);
+    }
     if (selected_parts.empty())
-        throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "part {} to {} not found.", min_block, max_block);
+        throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");
     auto read_step = query_context.custom_storage_merge_tree->reader.readFromParts(
         selected_parts,
         /* alter_conversions = */ {},
