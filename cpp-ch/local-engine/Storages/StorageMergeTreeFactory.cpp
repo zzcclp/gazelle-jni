@@ -95,7 +95,9 @@ void StorageMergeTreeFactory::addDataPartToCache(StorageID id, String part_name,
 
 std::unordered_map<std::string, CustomStorageMergeTreePtr> StorageMergeTreeFactory::storage_map;
 std::unordered_map<std::string, std::set<std::string>> StorageMergeTreeFactory::storage_columns_map;
+std::unordered_map<std::string, std::unordered_map<std::string, DataPartPtr>> StorageMergeTreeFactory::datapart_map;
 std::mutex StorageMergeTreeFactory::storage_map_mutex;
+std::mutex StorageMergeTreeFactory::datapart_mutex;
 
 std::unordered_map<std::string, StorageInMemoryMetadataPtr> StorageMergeTreeFactory::metadata_map;
 std::mutex StorageMergeTreeFactory::metadata_map_mutex;
