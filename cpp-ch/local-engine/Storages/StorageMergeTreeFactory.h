@@ -29,11 +29,15 @@ public:
     static CustomStorageMergeTreePtr
     getStorage(StorageID id, ColumnsDescription columns, std::function<CustomStorageMergeTreePtr()> creator);
     static StorageInMemoryMetadataPtr getMetadata(StorageID id, std::function<StorageInMemoryMetadataPtr()> creator);
+    static DataPartPtr getDataPart(StorageID id, String part_name);
+    static void addDataPartToCache(StorageID id, String part_name, DataPartPtr part);
 
 private:
     static std::unordered_map<std::string, CustomStorageMergeTreePtr> storage_map;
     static std::unordered_map<std::string, std::set<std::string>> storage_columns_map;
+    static std::unordered_map<std::string, std::unordered_map<std::string, DataPartPtr>> datapart_map;
     static std::mutex storage_map_mutex;
+    static std::mutex datapart_mutex;
 
     static std::unordered_map<std::string, StorageInMemoryMetadataPtr> metadata_map;
     static std::mutex metadata_map_mutex;

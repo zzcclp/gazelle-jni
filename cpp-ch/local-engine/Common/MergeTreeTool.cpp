@@ -67,13 +67,22 @@ MergeTreeTable parseMergeTreeTableString(const std::string & info)
     assertChar('\n', in);
     readString(table.table, in);
     assertChar('\n', in);
+    readString(table.order_by_key, in);
+    assertChar('\n', in);
+    if (table.order_by_key == MergeTreeTable::TUPLE)
+    {
+        readString(table.primary_key, in);
+        assertChar('\n', in);
+    }
     readString(table.relative_path, in);
     assertChar('\n', in);
-    readIntText(table.min_block, in);
-    assertChar('\n', in);
-    readIntText(table.max_block, in);
-    assertChar('\n', in);
-    assertEOF(in);
+    while(!in.eof())
+    {
+        String part;
+        readString(part, in);
+        table.parts.emplace(part);
+        assertChar('\n', in);
+    }
     return table;
 }
 
@@ -85,12 +94,21 @@ std::string MergeTreeTable::toString() const
     writeChar('\n', out);
     writeString(table, out);
     writeChar('\n', out);
+    writeString(order_by_key, out);
+    writeChar('\n', out);
+    if (order_by_key == MergeTreeTable::TUPLE)
+    {
+        writeString(primary_key, out);
+        writeChar('\n', out);
+    }
     writeString(relative_path, out);
     writeChar('\n', out);
-    writeIntText(min_block, out);
-    writeChar('\n', out);
-    writeIntText(max_block, out);
-    writeChar('\n', out);
+    for (const auto & part : parts)
+    {
+        writeString(part, out);
+        writeChar('\n', out);
+    }
+
     return out.str();
 }
 

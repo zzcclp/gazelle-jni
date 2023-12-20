@@ -46,6 +46,8 @@ public:
     std::vector<MergeTreeMutationStatus> getMutationsStatus() const override;
     bool scheduleDataProcessingJob(BackgroundJobsAssignee & executor) override;
     std::map<std::string, MutationCommands> getUnfinishedMutationCommands() const override;
+    DataPartsVector loadDataPartsWithNames(std::unordered_set<std::string> parts);
+
 
     MergeTreeDataWriter writer;
     MergeTreeDataSelectExecutor reader;
@@ -55,6 +57,11 @@ private:
 
     void startBackgroundMovesIfNeeded() override;
     std::unique_ptr<MergeTreeSettings> getDefaultSettings() const override;
+    LoadPartResult loadDataPart(
+        const MergeTreePartInfo & part_info,
+        const String & part_name,
+        const DiskPtr & part_disk_ptr,
+        MergeTreeDataPartState to_state);
 
 protected:
     void dropPartNoWaitNoThrow(const String & part_name) override;
