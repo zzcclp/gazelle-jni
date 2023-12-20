@@ -120,22 +120,7 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
         query_info->prewhere_info = parsePreWhereInfo(rel.filter(), header);
     }
 
-    std::unordered_set<String> remain_part_names;
-    std::vector<DataPartPtr> selected_parts;
-    for (const auto & part_name: merge_tree_table.parts)
-    {
-        auto part = storage_factory.getDataPart(table_id, part_name);
-        if (part)
-            selected_parts.emplace_back(part);
-        else
-            remain_part_names.emplace(part_name);
-    }
-    auto remain_parts = query_context.custom_storage_merge_tree->loadDataPartsWithNames(remain_part_names);
-    for (const auto & part : remain_parts)
-    {
-        selected_parts.emplace_back(part);
-        storage_factory.addDataPartToCache(table_id, part->name, part);
-    }
+    std::vector<DataPartPtr> selected_parts = storage_factory.getDataParts(table_id, merge_tree_table.parts);
     if (selected_parts.empty())
         throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");
     auto read_step = query_context.custom_storage_merge_tree->reader.readFromParts(
