@@ -156,15 +156,19 @@ class ClickHouseSparkCatalog
   }
 
   def scanMergeTreePartsToAddFile(clickHouseTableV2: ClickHouseTableV2): Unit = {
-    val (pathFilter, isBucketTable) = if (clickHouseTableV2.bucketOption.isDefined) {
-      ("/[0-9]*/*_[0-9]*_[0-9]*_[0-9]*", true)
+    val (pathFilter, isPartition, isBucketTable) = if (clickHouseTableV2.bucketOption.isDefined) {
+      ("/[0-9]*/*_[0-9]*_[0-9]*_[0-9]*", false, true)
+    } else if (clickHouseTableV2.partitioning().nonEmpty) {
+      // TODO: support to list all children paths
+      ("/*/all_[0-9]*_[0-9]*_[0-9]*", true, false)
     } else {
-      ("/*_[0-9]*_[0-9]*_[0-9]*", false)
+      ("/all_[0-9]*_[0-9]*_[0-9]*", false, false)
     }
     ScanMergeTreePartsUtils.scanMergeTreePartsToAddFile(
       spark.sessionState.newHadoopConf(),
       clickHouseTableV2,
       pathFilter,
+      isPartition,
       isBucketTable)
     clickHouseTableV2.refresh()
   }

@@ -33,31 +33,73 @@ public class ExtensionTableNode implements SplitInfo {
   private StringBuffer extensionTableStr = new StringBuffer(MERGE_TREE);
   private final List<String> preferredLocations = new ArrayList<>();
 
+  private String orderByKey;
+
+  private String primaryKey;
+
+  private List<String> partList;
+
   ExtensionTableNode(
       Long minPartsNum,
       Long maxPartsNum,
       String database,
       String tableName,
       String relativePath,
+      String orderByKey,
+      String primaryKey,
+      List<String> partList,
       List<String> preferredLocations) {
     this.minPartsNum = minPartsNum;
     this.maxPartsNum = maxPartsNum;
     this.database = database;
     this.tableName = tableName;
     this.relativePath = relativePath;
+    this.orderByKey = orderByKey;
+    this.primaryKey = primaryKey;
+    this.partList = partList;
     this.preferredLocations.addAll(preferredLocations);
-    // MergeTree;{database}\n{table}\n{relative_path}\n{min_part}\n{max_part}\n
-    extensionTableStr
-        .append(database)
-        .append("\n")
-        .append(tableName)
-        .append("\n")
-        .append(relativePath)
-        .append("\n")
-        .append(this.minPartsNum)
-        .append("\n")
-        .append(this.maxPartsNum)
-        .append("\n");
+    if (!this.partList.isEmpty()) {
+      // New: MergeTree;{database}\n{table}\n{orderByKey}\n{primaryKey}\n{relative_path}\n
+      // {part_path1}\n{part_path2}\n...
+
+      StringBuffer partPathList = new StringBuffer();
+      for (String p : this.partList) {
+        partPathList.append(p).append("\n");
+      }
+
+      extensionTableStr
+          .append(database)
+          .append("\n")
+          .append(tableName)
+          .append("\n")
+          .append(this.orderByKey)
+          .append("\n");
+
+      if (!this.orderByKey.isEmpty() && !this.orderByKey.equals("tuple()")
+          && !this.primaryKey.isEmpty()) {
+        extensionTableStr
+            .append(this.primaryKey)
+            .append("\n");
+      }
+      extensionTableStr
+          .append(relativePath)
+          .append("\n")
+          .append(partPathList);
+
+    } else {
+      // Old: MergeTree;{database}\n{table}\n{relative_path}\n{min_part}\n{max_part}\n
+      extensionTableStr
+          .append(database)
+          .append("\n")
+          .append(tableName)
+          .append("\n")
+          .append(relativePath)
+          .append("\n")
+          .append(this.minPartsNum)
+          .append("\n")
+          .append(this.maxPartsNum)
+          .append("\n");
+    }
   }
 
   @Override

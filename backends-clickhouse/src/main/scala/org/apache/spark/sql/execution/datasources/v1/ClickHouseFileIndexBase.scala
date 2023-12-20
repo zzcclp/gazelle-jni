@@ -17,9 +17,9 @@
 package org.apache.spark.sql.execution.datasources.v1
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, GenericInternalRow}
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, Cast, Expression, GenericInternalRow, Literal, Predicate}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
+import org.apache.spark.sql.delta.{DeltaColumnMapping, DeltaLog, Snapshot}
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
@@ -55,7 +55,7 @@ abstract class ClickHouseFileIndexBase(
   override def matchingFiles(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[AddFile] = {
-    Seq.empty[AddFile]
+    getSnapshot.filesForScan(this.partitionFilters ++ partitionFilters ++ dataFilters).files
   }
 
   override def inputFiles: Array[String] = {
@@ -65,10 +65,19 @@ abstract class ClickHouseFileIndexBase(
   override def listFiles(
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
-    table
+    val timeZone = spark.sessionState.conf.sessionLocalTimeZone
+    val partitionColumns = partitionSchema
+    val allParts = table
       .listFiles()
       .map(
         parts => {
+          val rowValues: Array[Any] = partitionColumns.map {
+            p =>
+              val colName = DeltaColumnMapping.getPhysicalName(p)
+              val partValue = Literal(parts.partitionValues.get(colName).orNull)
+              Cast(partValue, p.dataType, Option(timeZone), ansiEnabled = false).eval()
+          }.toArray
+
           val fileStats = new FileStatus(
             /* length */ parts.bytesOnDisk,
             /* isDir */ false,
@@ -77,8 +86,26 @@ abstract class ClickHouseFileIndexBase(
             /* modificationTime */ parts.modificationTime,
             absolutePath(parts.path)
           )
-          PartitionDirectory(new GenericInternalRow(Array.empty[Any]), Seq(fileStats))
+          PartitionDirectory(new GenericInternalRow(rowValues), Seq(fileStats))
         })
+
+    // partition filters
+    val ret = if (partitionFilters.nonEmpty) {
+      val predicate = partitionFilters.reduce(And)
+
+      val boundPredicate = Predicate.create(
+        predicate.transform {
+          case a: AttributeReference =>
+            val index = partitionColumns.indexWhere(a.name == _.name)
+            BoundReference(index, partitionColumns(index).dataType, nullable = true)
+        },
+        Nil
+      )
+      allParts.filter(p => boundPredicate.eval(p.values))
+    } else {
+      allParts
+    }
+    ret
   }
 
   def partsPartitions(

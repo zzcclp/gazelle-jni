@@ -17,7 +17,7 @@
 package org.apache.spark.affinity
 
 import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
-import io.glutenproject.execution.GlutenMergeTreePartition
+import io.glutenproject.execution.{GlutenMergeTreePartition, NewGlutenMergeTreePartition}
 import io.glutenproject.softaffinity.{AffinityManager, SoftAffinityManager}
 
 import org.apache.spark.softaffinity.Affinity
@@ -33,6 +33,11 @@ abstract class MixedAffinity(manager: AffinityManager) extends Affinity(manager)
   def getNativeMergeTreePartitionLocations(
       filePartition: GlutenMergeTreePartition): Array[String] = {
     getHostLocations(filePartition.tablePath + "_" + filePartition.maxParts)
+  }
+
+  def getNewNativeMergeTreePartitionLocations(
+      filePartition: NewGlutenMergeTreePartition): Array[String] = {
+    getHostLocations(filePartition.tablePath + "/" + filePartition.partList(0))
   }
 
   def getHostLocations(filePath: String): Array[String] = {

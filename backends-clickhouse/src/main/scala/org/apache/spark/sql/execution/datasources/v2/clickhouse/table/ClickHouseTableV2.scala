@@ -176,6 +176,28 @@ case class ClickHouseTableV2(
     }
   }
 
+  lazy val orderByKeyOption: Option[Seq[String]] = {
+    val tableProperties = properties()
+    if (tableProperties.containsKey("orderByKey")) {
+      Some(tableProperties.get("orderByKey").split(",").toSeq)
+    } else {
+      None
+    }
+  }
+
+  lazy val primaryKeyOption: Option[Seq[String]] = {
+    if (orderByKeyOption.isDefined) {
+      val tableProperties = properties()
+      if (tableProperties.containsKey("primaryKey")) {
+        Some(tableProperties.get("primaryKey").split(",").toSeq)
+      } else {
+        None
+      }
+    } else {
+      None
+    }
+  }
+
   /** Return V1Table. */
   override def v1Table: CatalogTable = {
     if (catalogTable.isEmpty) {
@@ -320,15 +342,18 @@ object ClickHouseTableV2 extends Logging {
       .as[AddFile]
       .collect()
       .map(AddFileTags.partsMapToParts)
-      .sortWith(
+      /* .sortWith(
         (a, b) => {
           if (a.bucketNum.nonEmpty) {
-            (Integer.parseInt(a.bucketNum) < Integer.parseInt(b.bucketNum)) ||
-            (a.minBlockNumber < b.minBlockNumber)
+            if (Integer.parseInt(a.bucketNum) == Integer.parseInt(b.bucketNum)) {
+              a.minBlockNumber < b.minBlockNumber
+            } else {
+              Integer.parseInt(a.bucketNum) < Integer.parseInt(b.bucketNum)
+            }
           } else {
             a.minBlockNumber < b.minBlockNumber
           }
-        })
+        }) */
       .toSeq
     logInfo(
       s"Get ${allParts.size} parts from path ${tablePath.toString} " +
