@@ -32,3 +32,19 @@ case class GlutenMergeTreePartition(
     Array.empty[String]
   }
 }
+
+case class NewGlutenMergeTreePartition(
+    index: Int,
+    engine: String,
+    database: String,
+    table: String,
+    tablePath: String,
+    orderByKey: String,
+    primaryKey: String,
+    partList: Array[String],
+    plan: Array[Byte] = PlanBuilder.EMPTY_PLAN)
+  extends BaseGlutenPartition {
+  override def preferredLocations(): Array[String] = {
+    Array.empty[String]
+  }
+}

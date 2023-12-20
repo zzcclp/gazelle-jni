@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.datasources.utils
 
 import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
-import io.glutenproject.execution.GlutenMergeTreePartition
+import io.glutenproject.execution.{GlutenMergeTreePartition, NewGlutenMergeTreePartition}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -145,6 +145,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
     // TODO: remove `substring`
     val tablePath = table.deltaLog.dataPath.toString.substring(6)
 
+    val orderByKeyOption = table.orderByKeyOption
+    val primaryKeyOption = table.primaryKeyOption
+
     // bucket table
     if (table.bucketOption.isDefined) {
       if (bucketedScan) {
@@ -173,13 +176,16 @@ object MergeTreePartsPartitionsUtil extends Logging {
           sparkSession)
       }
     } else {
-      genNonBuckedInputPartitionSeq(
+      genInputPartitionSeq(
         engine,
         database,
         tableName,
         tablePath,
         partsFiles,
+        selectedPartitions,
         partitions,
+        orderByKeyOption,
+        primaryKeyOption,
         sparkSession
       )
     }
@@ -389,6 +395,76 @@ object MergeTreePartsPartitionsUtil extends Logging {
           }
           currentMaxPartsNum = parts.maxBlockNumber
       }
+    }
+    closePartition()
+  }
+
+  def genInputPartitionSeq(
+      engine: String,
+      database: String,
+      tableName: String,
+      tablePath: String,
+      partsFiles: Seq[AddMergeTreeParts],
+      selectedPartitions: Array[PartitionDirectory],
+      partitions: ArrayBuffer[InputPartition],
+      orderByKeyOption: Option[Seq[String]],
+      primaryKeyOption: Option[Seq[String]],
+      sparkSession: SparkSession): Unit = {
+    val selectedPartitionMap = selectedPartitions
+      .flatMap(
+        p => {
+          p.files.map(
+            f => {
+              (f.getPath.toString, f)
+            })
+        })
+      .toMap
+    var currentSize = 0L
+    var currentFiles = new ArrayBuffer[String]
+
+    val orderByKey =
+      if (orderByKeyOption.isDefined) orderByKeyOption.get.mkString(",") else "tuple()"
+
+    val primaryKey = if (orderByKeyOption.isDefined && primaryKeyOption.isDefined) {
+      primaryKeyOption.get.mkString(",")
+    } else ""
+
+    /** Close the current partition and move to the next. */
+    def closePartition(): Unit = {
+      if (currentFiles.nonEmpty) {
+        val newPartition = NewGlutenMergeTreePartition(
+          partitions.size,
+          engine,
+          database,
+          tableName,
+          tablePath,
+          orderByKey,
+          primaryKey,
+          currentFiles.toArray
+        )
+        partitions += newPartition
+      }
+      currentFiles.clear()
+      currentSize = 0
+    }
+
+    // generate `Seq[InputPartition]` by file size
+    val openCostInBytes = sparkSession.sessionState.conf.filesOpenCostInBytes
+    val maxSplitBytes = sparkSession.sessionState.conf.filesMaxPartitionBytes
+    logInfo(
+      s"Planning scan with bin packing, max size: $maxSplitBytes bytes, " +
+        s"open cost is considered as scanning $openCostInBytes bytes.")
+    // Assign files to partitions using "Next Fit Decreasing"
+    partsFiles.foreach {
+      parts =>
+        if (selectedPartitionMap.get(parts.path).isDefined) {
+          if (currentSize + parts.bytesOnDisk > maxSplitBytes) {
+            closePartition()
+          }
+          // Add the given file to the current partition.
+          currentSize += parts.bytesOnDisk + openCostInBytes
+          currentFiles += parts.name
+        }
     }
     closePartition()
   }

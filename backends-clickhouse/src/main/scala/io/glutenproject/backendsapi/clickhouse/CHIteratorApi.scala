@@ -65,7 +65,23 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             p.database,
             p.table,
             p.tablePath,
+            "",
+            "",
+            new JArrayList[String](),
             CHAffinity.getNativeMergeTreePartitionLocations(p).toList.asJava)
+      case p: NewGlutenMergeTreePartition =>
+        ExtensionTableBuilder
+          .makeExtensionTable(
+            -1L,
+            -1L,
+            p.database,
+            p.table,
+            p.tablePath,
+            p.orderByKey,
+            p.primaryKey,
+            p.partList.toList.asJava,
+            CHAffinity.getNewNativeMergeTreePartitionLocations(p).toList.asJava
+          )
       case f: FilePartition =>
         val paths = new JArrayList[String]()
         val starts = new JArrayList[JLong]()
