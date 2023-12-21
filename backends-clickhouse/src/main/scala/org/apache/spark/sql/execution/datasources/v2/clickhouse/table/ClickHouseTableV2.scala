@@ -179,7 +179,11 @@ case class ClickHouseTableV2(
   lazy val orderByKeyOption: Option[Seq[String]] = {
     val tableProperties = properties()
     if (tableProperties.containsKey("orderByKey")) {
-      Some(tableProperties.get("orderByKey").split(",").toSeq)
+      if (tableProperties.get("orderByKey").nonEmpty) {
+        Some(tableProperties.get("orderByKey").split(",").toSeq)
+      } else {
+        None
+      }
     } else {
       None
     }
@@ -189,7 +193,11 @@ case class ClickHouseTableV2(
     if (orderByKeyOption.isDefined) {
       val tableProperties = properties()
       if (tableProperties.containsKey("primaryKey")) {
-        Some(tableProperties.get("primaryKey").split(",").toSeq)
+        if (tableProperties.get("primaryKey").nonEmpty) {
+          Some(tableProperties.get("primaryKey").split(",").toSeq)
+        } else {
+          None
+        }
       } else {
         None
       }
