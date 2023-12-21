@@ -423,11 +423,17 @@ object MergeTreePartsPartitionsUtil extends Logging {
     var currentFiles = new ArrayBuffer[String]
 
     val orderByKey =
-      if (orderByKeyOption.isDefined) orderByKeyOption.get.mkString(",") else "tuple()"
+      if (orderByKeyOption.isDefined && orderByKeyOption.get.nonEmpty) {
+        orderByKeyOption.get.mkString(",")
+      } else "tuple()"
 
-    val primaryKey = if (orderByKeyOption.isDefined && primaryKeyOption.isDefined) {
-      primaryKeyOption.get.mkString(",")
-    } else ""
+    val primaryKey =
+      if (
+        !orderByKey.equals("tuple()") && primaryKeyOption.isDefined &&
+        primaryKeyOption.get.nonEmpty
+      ) {
+        primaryKeyOption.get.mkString(",")
+      } else ""
 
     /** Close the current partition and move to the next. */
     def closePartition(): Unit = {

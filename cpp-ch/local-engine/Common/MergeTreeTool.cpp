@@ -69,7 +69,7 @@ MergeTreeTable parseMergeTreeTableString(const std::string & info)
     assertChar('\n', in);
     readString(table.order_by_key, in);
     assertChar('\n', in);
-    if (table.order_by_key == MergeTreeTable::TUPLE)
+    if (table.order_by_key != MergeTreeTable::TUPLE)
     {
         readString(table.primary_key, in);
         assertChar('\n', in);
