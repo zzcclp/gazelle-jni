@@ -52,6 +52,8 @@ public:
     MergeTreeDataWriter writer;
     MergeTreeDataSelectExecutor reader;
 
+    static std::atomic<int> part_num;
+
 private:
     SimpleIncrement increment;
 

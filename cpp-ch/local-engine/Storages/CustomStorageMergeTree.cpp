@@ -56,15 +56,16 @@ CustomStorageMergeTree::CustomStorageMergeTree(
     initializeDirectoriesAndFormatVersion(relative_data_path_, attach, date_column_name);
 }
 
+std::atomic<int> CustomStorageMergeTree::part_num;
+
 DataPartsVector CustomStorageMergeTree::loadDataPartsWithNames(std::unordered_set<std::string> parts)
 {
     DataPartsVector data_parts;
     const auto disk = getStoragePolicy()->getDisks().at(0);
-    int num = 0;
     for (const auto& name : parts)
     {
-        num ++;
-        MergeTreePartInfo part_info = {"all", num, num, 0};
+        part_num ++;
+        MergeTreePartInfo part_info = {"all", part_num, part_num, 0};
         auto res = loadDataPart(part_info, name, disk, MergeTreeDataPartState::Active);
         data_parts.emplace_back(res.part);
     }
