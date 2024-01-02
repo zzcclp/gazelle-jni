@@ -31,8 +31,18 @@ public class ExtensionTableNode implements SplitInfo {
   private String database;
   private String tableName;
   private String relativePath;
+  private String tableSchemaJson;
   private StringBuffer extensionTableStr = new StringBuffer(MERGE_TREE);
+  private StringBuffer partPathList = new StringBuffer("");
   private final List<String> preferredLocations = new ArrayList<>();
+
+  private String orderByKey;
+
+  private String primaryKey;
+
+  private List<String> partList;
+  private List<Long> starts;
+  private List<Long> lengths;
 
   ExtensionTableNode(
       Long minPartsNum,
@@ -40,25 +50,73 @@ public class ExtensionTableNode implements SplitInfo {
       String database,
       String tableName,
       String relativePath,
+      String orderByKey,
+      String primaryKey,
+      List<String> partList,
+      List<Long> starts,
+      List<Long> lengths,
+      String tableSchemaJson,
       List<String> preferredLocations) {
     this.minPartsNum = minPartsNum;
     this.maxPartsNum = maxPartsNum;
     this.database = database;
     this.tableName = tableName;
-    this.relativePath = relativePath;
+    if (relativePath.startsWith("/")) {
+      this.relativePath = relativePath.substring(1);
+    } else {
+      this.relativePath = relativePath;
+    }
+    this.tableSchemaJson = tableSchemaJson;
+    this.orderByKey = orderByKey;
+    this.primaryKey = primaryKey;
+    this.partList = partList;
+    this.starts = starts;
+    this.lengths = lengths;
     this.preferredLocations.addAll(preferredLocations);
-    // MergeTree;{database}\n{table}\n{relative_path}\n{min_part}\n{max_part}\n
+
+    // New: MergeTree;{database}\n{table}\n{orderByKey}\n{primaryKey}\n{relative_path}\n
+    // {part_path1}\n{part_path2}\n...
+    for (int i = 0; i < this.partList.size(); i++) {
+      partPathList
+          .append(this.partList.get(i))
+          .append("\n")
+          .append(this.starts.get(i))
+          .append("\n")
+          .append(this.lengths.get(i))
+          .append("\n");
+    }
+
     extensionTableStr
         .append(database)
         .append("\n")
         .append(tableName)
         .append("\n")
-        .append(relativePath)
+        .append(tableSchemaJson)
         .append("\n")
-        .append(this.minPartsNum)
-        .append("\n")
-        .append(this.maxPartsNum)
+        .append(this.orderByKey)
         .append("\n");
+
+    if (!this.orderByKey.isEmpty() && !this.orderByKey.equals("tuple()")) {
+      extensionTableStr.append(this.primaryKey).append("\n");
+    }
+    extensionTableStr.append(this.relativePath).append("\n").append(partPathList);
+
+    /* old format
+    if (!this.partList.isEmpty()) {
+    } else {
+      // Old: MergeTree;{database}\n{table}\n{relative_path}\n{min_part}\n{max_part}\n
+      extensionTableStr
+          .append(database)
+          .append("\n")
+          .append(tableName)
+          .append("\n")
+          .append(relativePath)
+          .append("\n")
+          .append(this.minPartsNum)
+          .append("\n")
+          .append(this.maxPartsNum)
+          .append("\n");
+    } */
   }
 
   @Override

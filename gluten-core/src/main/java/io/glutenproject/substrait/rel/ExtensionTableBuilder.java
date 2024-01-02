@@ -27,8 +27,25 @@ public class ExtensionTableBuilder {
       String database,
       String tableName,
       String relativePath,
+      String orderByKey,
+      String primaryKey,
+      List<String> partList,
+      List<Long> starts,
+      List<Long> lengths,
+      String tableSchemaJson,
       List<String> preferredLocations) {
     return new ExtensionTableNode(
-        minPartsNum, maxPartsNum, database, tableName, relativePath, preferredLocations);
+        minPartsNum,
+        maxPartsNum,
+        database,
+        tableName,
+        relativePath,
+        orderByKey,
+        primaryKey,
+        partList,
+        starts,
+        lengths,
+        tableSchemaJson,
+        preferredLocations);
   }
 }

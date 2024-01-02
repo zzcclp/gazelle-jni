@@ -55,9 +55,6 @@ object ClickHouseConfig {
         configurations += ("engine" -> DEFAULT_ENGINE)
       }
     }
-    if (!configurations.contains("primary_key")) {
-      configurations += ("primary_key" -> "")
-    }
     if (!configurations.contains("sampling_key")) {
       configurations += ("sampling_key" -> "")
     }

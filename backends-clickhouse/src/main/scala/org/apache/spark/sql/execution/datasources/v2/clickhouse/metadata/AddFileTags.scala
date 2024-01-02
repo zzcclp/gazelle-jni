@@ -17,6 +17,14 @@
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata
 
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.execution.datasources.clickhouse.WriteReturnedMetric
+
+import com.fasterxml.jackson.core.`type`.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
+
+import java.util.{List => JList}
+
+import scala.collection.JavaConverters._
 
 case class AddMergeTreeParts(
     database: String,
@@ -101,7 +109,8 @@ object AddFileTags {
       partition: String = "",
       defaultCompressionCodec: String = "LZ4",
       stats: String = "",
-      partitionValues: Map[String, String] = Map.empty[String, String]): AddFile = {
+      partitionValues: Map[String, String] = Map.empty[String, String],
+      marks: Long = -1L): AddFile = {
     // scalastyle:on argcount
     val tags = Map[String, String](
       "database" -> database,
@@ -123,7 +132,8 @@ object AddFileTags {
       "dataVersion" -> dataVersion.toString,
       "defaultCompressionCodec" -> defaultCompressionCodec,
       "bucketNum" -> bucketNum,
-      "dirName" -> dirName
+      "dirName" -> dirName,
+      "marks" -> marks.toString
     )
     AddFile(name, partitionValues, bytesOnDisk, modificationTime, dataChange, stats, tags)
   }
@@ -154,7 +164,50 @@ object AddFileTags {
       addFile.tags.get("partition").get,
       addFile.tags.get("defaultCompressionCodec").get,
       addFile.stats,
-      addFile.partitionValues
+      addFile.partitionValues,
+      marks = addFile.tags.get("marks").get.toLong
     )
+  }
+
+  def partsMetricsToAddFile(
+      database: String,
+      tableName: String,
+      originPath: String,
+      returnedMetrics: String): Option[AddFile] = {
+    val mapper: ObjectMapper = new ObjectMapper()
+    try {
+      val values: JList[WriteReturnedMetric] =
+        mapper.readValue(returnedMetrics, new TypeReference[JList[WriteReturnedMetric]]() {})
+      val value = values.get(0)
+      Some(
+        AddFileTags.partsInfoToAddFile(
+          database,
+          tableName,
+          "MergeTree",
+          originPath,
+          "",
+          value.getPartName,
+          "",
+          value.getRowCount,
+          value.getDiskSize,
+          -1L,
+          -1L,
+          -1L,
+          "",
+          -1L,
+          -1L,
+          -1,
+          -1L,
+          "",
+          originPath,
+          true,
+          "",
+          partitionValues = value.getPartitionValues.asScala.toMap,
+          marks = value.getMarkCount
+        ))
+    } catch {
+      case e: Exception =>
+        None
+    }
   }
 }

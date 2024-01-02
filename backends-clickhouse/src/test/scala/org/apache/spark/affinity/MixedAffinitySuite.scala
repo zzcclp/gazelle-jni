@@ -16,7 +16,7 @@
  */
 package org.apache.spark.affinity
 
-import io.glutenproject.execution.{GlutenMergeTreePartition, GlutenPartition}
+import io.glutenproject.execution.{GlutenMergeTreePartition, GlutenPartition, MergeTreePartitionedFile}
 import io.glutenproject.softaffinity.AffinityManager
 import io.glutenproject.substrait.plan.PlanBuilder
 
@@ -47,7 +47,8 @@ class MixedAffinitySuite extends QueryTest with SharedSparkSession {
     val affinity = new MixedAffinity(manager) {
       override def affinityMode: String = "force"
     }
-    val partition = GlutenMergeTreePartition(0, "", "", "", "fakePath", 0, 0)
+    val file = MergeTreePartitionedFile("0", "", -1, -1, -1)
+    val partition = GlutenMergeTreePartition(0, "", "", "", "fakePath", "", "", Array(file), "")
     val locations = affinity.getNativeMergeTreePartitionLocations(partition)
     val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations)
     assertResult(Set("forced_host_host-0")) {

@@ -112,6 +112,10 @@ object ConverterUtils extends Logging {
     attributes.map(attr => getTypeNode(attr.dataType, attr.nullable)).asJava
   }
 
+  def collectAttributeTypeNodes(structType: StructType): JList[TypeNode] = {
+    structType.fields.map(f => getTypeNode(f.dataType, f.nullable)).toList.asJava
+  }
+
   def collectAttributeNamesWithExprId(attributes: JList[Attribute]): JList[String] = {
     collectAttributeNamesWithExprId(attributes.asScala)
   }
