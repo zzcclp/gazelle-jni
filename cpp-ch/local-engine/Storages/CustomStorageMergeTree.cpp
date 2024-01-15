@@ -62,7 +62,7 @@ void CustomStorageMergeTree::wrapRangesInDataParts(DB::ReadFromMergeTree & sourc
     }
 
     result.parts_with_ranges = final;
-    source.setAnalyzedResult(std::make_shared<MergeTreeDataSelectAnalysisResult>(result));
+    source.setAnalyzedResult(std::make_shared<ReadFromMergeTree::AnalysisResult>(result));
 }
 
 CustomStorageMergeTree::CustomStorageMergeTree(
