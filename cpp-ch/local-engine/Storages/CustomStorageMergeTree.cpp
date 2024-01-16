@@ -116,10 +116,9 @@ MergeTreeData::LoadPartResult CustomStorageMergeTree::loadDataPart(
 
     LoadPartResult res;
     auto single_disk_volume = std::make_shared<SingleDiskVolume>("volume_" + part_name, part_disk_ptr, 0);
-    auto data_part_storage = std::make_shared<DataPartStorageOnDiskFull>(single_disk_volume, relative_data_path, part_name);
-
     String part_path = fs::path(relative_data_path) / part_name;
 
+    auto data_part_storage = std::make_shared<DataPartStorageOnDiskFull>(single_disk_volume, "", part_path);
 
     try
     {

@@ -32,6 +32,13 @@ public:
     static StorageInMemoryMetadataPtr getMetadata(StorageID id, std::function<StorageInMemoryMetadataPtr()> creator);
     static DataPartsVector getDataParts(StorageID id, std::unordered_set<String> part_name);
     static void addDataPartToCache(StorageID id, String part_name, DataPartPtr part);
+    static void clear()
+    {
+        storage_columns_map.clear();
+        storage_map.clear();
+        datapart_map.clear();
+        metadata_map.clear();
+    }
 
 private:
     static std::unordered_map<std::string, CustomStorageMergeTreePtr> storage_map;

@@ -163,7 +163,6 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPart(
                              .build();
 
     auto data_part_storage = new_data_part->getDataPartStoragePtr();
-    data_part_storage->beginTransaction();
 
 
     const auto & data_settings = storage.getSettings();
