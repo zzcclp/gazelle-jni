@@ -58,7 +58,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     FileUtils.forceMkdir(basePathDir)
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
-    FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
+    // FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
     super.beforeAll()
     spark.sparkContext.setLogLevel(logLevel)
     if (createNullableTables) {
@@ -69,6 +69,22 @@ abstract class GlutenClickHouseTPCHAbstractSuite
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
+    // create parquet data source table
+    val parquetSourceDB = "parquet_source"
+    spark.sql(s"""
+                 |CREATE DATABASE IF NOT EXISTS $parquetSourceDB
+                 |""".stripMargin)
+    spark.sql(s"use $parquetSourceDB")
+
+    val parquetTablePath = basePath + "/tpch-data"
+    val parquetTableDataPath: String =
+      "../../../../gluten-core/src/test/resources/tpch-data"
+    FileUtils.copyDirectory(new File(rootPath + parquetTableDataPath), new File(parquetTablePath))
+
+    createTPCHParquetTables(parquetTablePath)
+
+    // create mergetree tables
+    spark.sql(s"use default")
     val customerData = tablesPath + "/customer"
     spark.sql(s"DROP TABLE IF EXISTS customer")
     spark.sql(s"""
@@ -216,9 +232,24 @@ abstract class GlutenClickHouseTPCHAbstractSuite
               |""".stripMargin)
       .collect()
     assert(result.length == 8)
+
+    // insert data into mergetree tables from parquet tables
+    insertIntoMergeTreeTPCHTables(parquetSourceDB)
   }
 
   protected def createTPCHNullableTables(): Unit = {
+    // create parquet data source table
+    val parquetSourceDB = "parquet_source"
+    spark.sql(s"""
+                 |CREATE DATABASE IF NOT EXISTS $parquetSourceDB
+                 |""".stripMargin)
+    spark.sql(s"use $parquetSourceDB")
+
+    val parquetTablePath = basePath + "/tpch-data"
+
+    createTPCHParquetTables(parquetTablePath)
+
+    // create mergetree tables
     spark.sql(s"""
                  |CREATE DATABASE IF NOT EXISTS tpch_nullable
                  |""".stripMargin)
@@ -370,6 +401,35 @@ abstract class GlutenClickHouseTPCHAbstractSuite
               |""".stripMargin)
       .collect()
     assert(result.length == 8)
+
+    insertIntoMergeTreeTPCHTables(parquetSourceDB)
+  }
+
+  protected def insertIntoMergeTreeTPCHTables(dataSourceDB: String): Unit = {
+    spark.sql(s"""
+                 | insert into table customer select * from $dataSourceDB.customer
+                 |""".stripMargin)
+    spark.sql(s"""
+                 | insert into table lineitem select * from $dataSourceDB.lineitem
+                 |""".stripMargin)
+    spark.sql(s"""
+                 | insert into table nation select * from $dataSourceDB.nation
+                 |""".stripMargin)
+    spark.sql(s"""
+                 | insert into table region select * from $dataSourceDB.region
+                 |""".stripMargin)
+    spark.sql(s"""
+                 | insert into table orders select * from $dataSourceDB.orders
+                 |""".stripMargin)
+    spark.sql(s"""
+                 | insert into table part select * from $dataSourceDB.part
+                 |""".stripMargin)
+    spark.sql(s"""
+                 | insert into table partsupp select * from $dataSourceDB.partsupp
+                 |""".stripMargin)
+    spark.sql(s"""
+                 | insert into table supplier select * from $dataSourceDB.supplier
+                 |""".stripMargin)
   }
 
   protected def createTPCHParquetTables(parquetTablePath: String): Unit = {

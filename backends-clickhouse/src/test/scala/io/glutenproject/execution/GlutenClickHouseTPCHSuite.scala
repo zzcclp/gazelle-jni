@@ -103,7 +103,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     withSQLConf(
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
-      ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
+      ("spark.gluten.sql.columnar.backend.ch.use.v2", "false")) {
       runTPCHQuery(7) { df => }
     }
   }
@@ -112,7 +112,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     withSQLConf(
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
-      ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
+      ("spark.gluten.sql.columnar.backend.ch.use.v2", "false")) {
       runTPCHQuery(8) { df => }
     }
   }
