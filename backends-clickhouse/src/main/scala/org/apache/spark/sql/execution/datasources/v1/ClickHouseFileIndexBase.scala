@@ -76,7 +76,7 @@ abstract class ClickHouseFileIndexBase(
             /* blockReplication */ 0,
             /* blockSize */ 1,
             /* modificationTime */ parts.modificationTime,
-            absolutePath(parts.path)
+            new Path(parts.name)
           )
           PartitionDirectory(new GenericInternalRow(rowValues), Seq(fileStats))
         })

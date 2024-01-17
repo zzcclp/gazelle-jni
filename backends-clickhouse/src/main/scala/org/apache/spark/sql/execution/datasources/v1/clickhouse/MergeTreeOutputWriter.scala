@@ -22,6 +22,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, FakeRow, OutputWriter}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddFileTags
+import org.apache.spark.util.Utils
 
 class MergeTreeOutputWriter(
     database: String,
@@ -46,7 +47,12 @@ class MergeTreeOutputWriter(
   override def close(): Unit = {
     val returnedMetrics = datasourceJniWrapper.closeMergeTreeWriter(instance)
     if (returnedMetrics != null && returnedMetrics.nonEmpty) {
-      addFile = AddFileTags.partsMetricsToAddFile(database, tableName, originPath, returnedMetrics)
+      addFile = AddFileTags.partsMetricsToAddFile(
+        database,
+        tableName,
+        originPath,
+        returnedMetrics,
+        Seq(Utils.localHostName()))
     }
   }
 

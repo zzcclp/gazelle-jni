@@ -21,6 +21,7 @@ import io.glutenproject.substrait.plan.PlanBuilder
 case class MergeTreePartitionedFile(
     name: String,
     path: String,
+    targetNode: String,
     start: Long,
     length: Long,
     bytesOnDisk: Long) {

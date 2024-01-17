@@ -263,12 +263,12 @@ object MergeTreePartsPartitionsUtil extends Logging {
         p => {
           p.files.map(
             f => {
-              (f.getPath.toString, f)
+              (f.getPath.toUri.getPath, f)
             })
         })
       .toMap
 
-    val selectPartsFiles = partsFiles.filter(part => selectedPartitionMap.contains(part.path))
+    val selectPartsFiles = partsFiles.filter(part => selectedPartitionMap.contains(part.name))
 
     if (selectPartsFiles.isEmpty) {
       return
@@ -280,23 +280,27 @@ object MergeTreePartsPartitionsUtil extends Logging {
     val markCntPerPartition = maxSplitBytes * total_marks / total_Bytes + 1
 
     logInfo(s"Planning scan with bin packing, max mark: $markCntPerPartition")
-    val splitFiles = selectPartsFiles.flatMap {
-      part =>
-        (0L until part.marks by markCntPerPartition).map {
-          offset =>
-            val remaining = part.marks - offset
-            val size = if (remaining > markCntPerPartition) markCntPerPartition else remaining
-            MergeTreePartitionedFile(
-              part.name,
-              part.path,
-              offset,
-              size,
-              size * part.bytesOnDisk / part.marks)
-        }
-    }
+    val splitFiles = selectPartsFiles
+      .flatMap {
+        part =>
+          (0L until part.marks by markCntPerPartition).map {
+            offset =>
+              val remaining = part.marks - offset
+              val size = if (remaining > markCntPerPartition) markCntPerPartition else remaining
+              MergeTreePartitionedFile(
+                part.name,
+                part.path,
+                part.targetNode,
+                offset,
+                size,
+                size * part.bytesOnDisk / part.marks)
+          }
+      }
+      .sortBy(_.targetNode)
 
     var currentSize = 0L
     val currentFiles = new ArrayBuffer[MergeTreePartitionedFile]
+    var currentHostName = splitFiles(0).targetNode
 
     /** Close the current partition and move to the next. */
     def closePartition(): Unit = {
@@ -324,12 +328,16 @@ object MergeTreePartsPartitionsUtil extends Logging {
     // Assign files to partitions using "Next Fit Decreasing"
     splitFiles.foreach {
       parts =>
-        if (currentSize + parts.bytesOnDisk > maxSplitBytes) {
+        if (
+          (currentSize + parts.bytesOnDisk > maxSplitBytes) ||
+          !currentHostName.equals(parts.targetNode)
+        ) {
           closePartition()
         }
         // Add the given file to the current partition.
         currentSize += parts.bytesOnDisk + openCostInBytes
         currentFiles += parts
+        currentHostName = parts.targetNode
     }
     closePartition()
   }

@@ -173,7 +173,8 @@ object AddFileTags {
       database: String,
       tableName: String,
       originPath: String,
-      returnedMetrics: String): Option[AddFile] = {
+      returnedMetrics: String,
+      hostName: Seq[String]): Option[AddFile] = {
     val mapper: ObjectMapper = new ObjectMapper()
     try {
       val values: JList[WriteReturnedMetric] =
@@ -185,7 +186,7 @@ object AddFileTags {
           tableName,
           "MergeTree",
           originPath,
-          "",
+          hostName.map(_.trim).mkString(","),
           value.getPartName,
           "",
           value.getRowCount,

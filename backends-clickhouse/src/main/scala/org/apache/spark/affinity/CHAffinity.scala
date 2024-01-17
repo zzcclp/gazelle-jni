@@ -32,7 +32,31 @@ abstract class MixedAffinity(manager: AffinityManager) extends Affinity(manager)
 
   def getNativeMergeTreePartitionLocations(
       filePartition: GlutenMergeTreePartition): Array[String] = {
-    getHostLocations(filePartition.tablePath + "/" + filePartition.partList(0).name)
+    getHostLocations(filePartition)
+  }
+
+  def getHostLocations(filePartition: GlutenMergeTreePartition): Array[String] = {
+    if (manager.usingSoftAffinity) {
+      internalGetHostLocations(filePartition)
+    } else {
+      Array.empty[String]
+    }
+  }
+
+  protected def internalGetHostLocations(filePartition: GlutenMergeTreePartition): Array[String] = {
+    affinityMode match {
+      case CHBackendSettings.SOFT =>
+        getLocations(filePartition.tablePath + "/" + filePartition.partList(0).name)(
+          getCacheTaskLocation)
+      case CHBackendSettings.FORCE =>
+        filePartition
+          .partList(0)
+          .targetNode
+          .split(",")
+          .map(host => s"$forcedHostLocationTag$host")
+          .toArray
+      case _ => throw new IllegalArgumentException("Unknown affinity mode")
+    }
   }
 
   def getHostLocations(filePath: String): Array[String] = {
