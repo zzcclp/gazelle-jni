@@ -30,6 +30,7 @@ object ClickHouseConfig {
   val METADATA_DIR = "_delta_log"
   val DEFAULT_ENGINE = "MergeTree"
 
+  @deprecated
   // Whether to use MergeTree DataSource V2 API, default is false, fall back to V1.
   val USE_DATASOURCE_V2 = "spark.gluten.sql.columnar.backend.ch.use.v2"
   val DEFAULT_USE_DATASOURCE_V2 = "false"

@@ -36,7 +36,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
   protected val createNullableTables = false
 
   override protected val backend: String = "ch"
-  override protected val resourcePath: String = "tpch-data-ch"
+  override protected val resourcePath: String = "tpch-data-ch-write"
   override protected val fileFormat: String = "parquet"
 
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -58,7 +58,10 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     FileUtils.forceMkdir(basePathDir)
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
-    // FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
+    val sourcePath = new File(rootPath + resourcePath)
+    if (sourcePath.exists()) {
+      FileUtils.copyDirectory(sourcePath, new File(tablesPath))
+    }
     super.beforeAll()
     spark.sparkContext.setLogLevel(logLevel)
     if (createNullableTables) {
@@ -242,10 +245,14 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     val parquetSourceDB = "parquet_source"
     spark.sql(s"""
                  |CREATE DATABASE IF NOT EXISTS $parquetSourceDB
+
                  |""".stripMargin)
     spark.sql(s"use $parquetSourceDB")
 
     val parquetTablePath = basePath + "/tpch-data"
+    val parquetTableDataPath: String =
+      "../../../../gluten-core/src/test/resources/tpch-data"
+    FileUtils.copyDirectory(new File(rootPath + parquetTableDataPath), new File(parquetTablePath))
 
     createTPCHParquetTables(parquetTablePath)
 

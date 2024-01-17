@@ -38,7 +38,6 @@ class GlutenClickHouseMergeTreeMetricsSuite extends GlutenClickHouseTPCHAbstract
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "1")
-      .set("spark.gluten.sql.columnar.backend.ch.use.v2", "true")
   }
 
   test("test all substrait plan in one wholestagetransformer") {
