@@ -15,8 +15,11 @@
  * limitations under the License.
  */
 #include "SparkMergeTreeWriter.h"
+
 #include <Disks/createVolume.h>
+#include <Disks/ObjectStorages/MetadataStorageFromDisk.h>
 #include <Interpreters/ActionsDAG.h>
+#include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <rapidjson/prettywriter.h>
 
 using namespace DB;
@@ -53,9 +56,7 @@ void SparkMergeTreeWriter::write(DB::Block & block)
         auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(res, 10, metadata_snapshot, context);
         for (auto & item : blocks_with_partition)
         {
-            auto temp_part = writeTempPart(item, metadata_snapshot, context);
-            temp_part.finalize();
-            new_parts.emplace_back(temp_part.part);
+            new_parts.emplace_back(writeTempPartAndFinalize(item, metadata_snapshot).part);
             part_num++;
         }
     }
@@ -68,16 +69,43 @@ void SparkMergeTreeWriter::finalize()
     {
         auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(block, 10, metadata_snapshot, context);
         for (auto & item : blocks_with_partition)
+            new_parts.emplace_back(writeTempPartAndFinalize(item, metadata_snapshot).part);
+    }
+}
+
+DB::MergeTreeDataWriter::TemporaryPart
+SparkMergeTreeWriter::writeTempPartAndFinalize(
+    DB::BlockWithPartition & block_with_partition,
+    const DB::StorageMetadataPtr & metadata_snapshot)
+{
+    auto temp_part = writeTempPart(block_with_partition, metadata_snapshot);
+    temp_part.finalize();
+    saveFileStatus(temp_part);
+    return temp_part;
+}
+
+void SparkMergeTreeWriter::saveFileStatus(const DB::MergeTreeDataWriter::TemporaryPart & temp_part) const
+{
+    auto & data_part_storage = temp_part.part->getDataPartStorage();
+
+    const VolumePtr volume = storage.getStoragePolicy()->getVolume(0);
+    if (const auto disk_metadata = dynamic_cast<MetadataStorageFromDisk *>(volume->getDisk()->getMetadataStorage().get()))
+    {
+        std::stringstream gluten_metadata;
+        for (const auto it = data_part_storage.iterate(); it->isValid(); it->next())
         {
-            auto temp_part = writeTempPart(item, metadata_snapshot, context);
-            temp_part.finalize();
-            new_parts.emplace_back(temp_part.part);
+            auto content = disk_metadata->readFileToString(it->path());
+            gluten_metadata << it->name() + "\t" + toString(content.length()) << "\n" << content;
         }
+
+        const auto out = data_part_storage.writeFile("metadata.gluten", DBMS_DEFAULT_BUFFER_SIZE, context->getWriteSettings());
+        writeText(gluten_metadata.str(), *out);
+        out->finalize();
     }
 }
 
 MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPart(
-    BlockWithPartition & block_with_partition, const StorageMetadataPtr & metadata_snapshot, ContextPtr context)
+    BlockWithPartition & block_with_partition, const StorageMetadataPtr & metadata_snapshot)
 {
     MergeTreeDataWriter::TemporaryPart temp_part;
     Block & block = block_with_partition.block;
