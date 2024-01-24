@@ -282,4 +282,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
   }
+
+  override def removeUnnecessaryHashAggregate(): Boolean = true
 }

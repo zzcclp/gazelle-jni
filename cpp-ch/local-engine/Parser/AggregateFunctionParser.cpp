@@ -88,7 +88,8 @@ std::pair<String, DB::DataTypes> AggregateFunctionParser::tryApplyCHCombinator(
     };
     String combinator_function_name = ch_func_name;
     DB::DataTypes combinator_arg_column_types = arg_column_types;
-    if (func_info.phase != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
+    if (func_info.phase != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE &&
+        func_info.phase != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_RESULT)
     {
         if (arg_column_types.size() != 1)
         {

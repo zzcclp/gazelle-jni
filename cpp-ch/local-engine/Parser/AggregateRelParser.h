@@ -53,6 +53,7 @@ private:
     bool has_first_stage = false;
     bool has_inter_stage = false;
     bool has_final_stage = false;
+    bool has_complete_stage = false;
 
     DB::QueryPlanPtr plan = nullptr;
     const substrait::AggregateRel * aggregate_rel = nullptr;
@@ -62,6 +63,7 @@ private:
     void setup(DB::QueryPlanPtr query_plan, const substrait::Rel & rel);
     void addPreProjection();
     void addMergingAggregatedStep();
+    void addCompleteModeAggregatedStep();
     void addAggregatingStep();
     void addPostProjection();
 

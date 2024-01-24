@@ -250,6 +250,8 @@ abstract class HashAggregateExecBaseTransformer(
               hasDistinct,
               s"Not support PartialMerge for non-distinct aggregate: $aggregateFunc")
             aggregateFunc.inputAggBufferAttributes.foreach(appendIfNotFound)
+          case Complete =>
+            aggregateFunc.children.foreach(appendIfNotFound)
           case other =>
             throw new UnsupportedOperationException(s"$other not supported.")
         }
@@ -317,7 +319,7 @@ abstract class HashAggregateExecBaseTransformer(
         val aggregateFunc = aggExpr.aggregateFunction
         val childrenNodeList = new JArrayList[ExpressionNode]()
         aggExpr.mode match {
-          case Partial =>
+          case Partial | Complete =>
             aggregateFunc.children.foreach {
               _ =>
                 val aggExpr = ExpressionBuilder.makeSelection(selections(colIdx))
@@ -427,17 +429,17 @@ abstract class HashAggregateExecBaseTransformer(
     aggFunc match {
       case _: CollectList | _: CollectSet =>
         mode match {
-          case Partial | Final => true
+          case Partial | Final | Complete => true
           case _ => false
         }
       case bloom if bloom.getClass.getSimpleName.equals("BloomFilterAggregate") =>
         mode match {
-          case Partial | Final => true
+          case Partial | Final | Complete => true
           case _ => false
         }
       case _ =>
         mode match {
-          case Partial | PartialMerge | Final => true
+          case Partial | PartialMerge | Final | Complete => true
           case _ => false
         }
     }
@@ -447,6 +449,7 @@ abstract class HashAggregateExecBaseTransformer(
     aggregateMode match {
       case Partial => "PARTIAL"
       case PartialMerge => "PARTIAL_MERGE"
+      case Complete => "COMPLETE"
       case Final => "FINAL"
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
@@ -485,7 +488,7 @@ abstract class HashAggregateExecBaseTransformer(
         }
         val aggregateFunc = aggExpr.aggregateFunction
         val childrenNodes = aggExpr.mode match {
-          case Partial =>
+          case Partial | Complete =>
             aggregateFunc.children.toList.map(
               expr => {
                 ExpressionConverter

@@ -40,7 +40,8 @@ public:
     explicit GraceMergingAggregatedStep(
         DB::ContextPtr context_,
         const DB::DataStream & input_stream_,
-        DB::Aggregator::Params params_);
+        DB::Aggregator::Params params_,
+        bool final_);
     ~GraceMergingAggregatedStep() override = default;
 
     String getName() const override { return "GraceMergingAggregatedStep"; }
@@ -52,6 +53,7 @@ public:
 private:
     DB::ContextPtr context;
     DB::Aggregator::Params params;
+    bool final;
     void updateOutputStream() override; 
 };
 
@@ -59,14 +61,17 @@ class GraceMergingAggregatedTransform : public DB::IProcessor
 {
 public:
     using Status = DB::IProcessor::Status;
-    explicit GraceMergingAggregatedTransform(const DB::Block &header_, DB::AggregatingTransformParamsPtr params_, DB::ContextPtr context_);
+    explicit GraceMergingAggregatedTransform(const DB::Block &header_, DB::AggregatingTransformParamsPtr params_, DB::ContextPtr context_, bool final_);
     ~GraceMergingAggregatedTransform() override;
 
     Status prepare() override;
     void work() override;
     String getName() const override { return "GraceMergingAggregatedTransform"; }
 private:
+    bool final;
     DB::Block header;
+    DB::ColumnRawPtrs key_columns;
+    DB::Aggregator::AggregateColumns aggregate_columns;
     DB::AggregatingTransformParamsPtr params;
     DB::ContextPtr context;
     DB::TemporaryDataOnDiskPtr tmp_data_disk;
@@ -80,7 +85,7 @@ private:
     bool throw_on_overflow_buckets = false;
     // Even the memory usage has reached the limit, we still allow to aggregate some more keys before
     // extend the buckets.
-    size_t aggregated_keys_before_extend_buckets = 8196;
+    size_t aggregated_keys_before_extend_buckets = 10;
     // The ratio of memory usage to the total memory usage of the whole query.
     double max_allowed_memory_usage_ratio = 0.9;
     // configured by max_pending_flush_blocks_per_grace_merging_bucket

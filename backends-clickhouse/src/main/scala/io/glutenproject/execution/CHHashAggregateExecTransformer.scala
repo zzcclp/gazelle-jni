@@ -254,7 +254,7 @@ case class CHHashAggregateExecTransformer(
                   child.asInstanceOf[BaseAggregateExec].aggregateExpressions)
               )
             Seq(aggTypesExpr.doTransform(args))
-          case Final | PartialMerge =>
+          case Final | PartialMerge | Complete =>
             Seq(
               ExpressionConverter
                 .replaceWithExpressionTransformer(aggExpr.resultAttribute, originalInputAttributes)
@@ -455,7 +455,7 @@ case class CHHashAggregateExecTransformer(
           }
           resIndex += aggBufferAttr.size
           resIndex
-        case Final =>
+        case Final | Complete =>
           aggregateAttr += aggregateAttributeList(resIndex)
           resIndex += 1
           resIndex

@@ -47,19 +47,21 @@ static DB::ITransformingStep::Traits getTraits()
     };
 }
 
-static DB::Block buildOutputHeader(const DB::Block & input_header_, const DB::Aggregator::Params params_)
+static DB::Block buildOutputHeader(const DB::Block & input_header_, const DB::Aggregator::Params params_, bool final)
 {
-    return params_.getHeader(input_header_, true);
+    return params_.getHeader(input_header_, final);
 }
 
 GraceMergingAggregatedStep::GraceMergingAggregatedStep(
     DB::ContextPtr context_,
     const DB::DataStream & input_stream_,
-    DB::Aggregator::Params params_)
+    DB::Aggregator::Params params_,
+    bool final_)
     : DB::ITransformingStep(
-        input_stream_, buildOutputHeader(input_stream_.header, params_), getTraits())
+        input_stream_, buildOutputHeader(input_stream_.header, params_, final_), getTraits())
     , context(context_)
     , params(std::move(params_))
+    , final(final_)
 {
 }
 
@@ -73,7 +75,7 @@ void GraceMergingAggregatedStep::transformPipeline(DB::QueryPipelineBuilder & pi
         DB::Processors new_processors;
         for (auto & output : outputs)
         {
-            auto op = std::make_shared<GraceMergingAggregatedTransform>(pipeline.getHeader(), transform_params, context);
+            auto op = std::make_shared<GraceMergingAggregatedTransform>(pipeline.getHeader(), transform_params, context, final);
             new_processors.push_back(op);
             DB::connect(*output, op->getInputs().front());
         }
@@ -95,14 +97,17 @@ void GraceMergingAggregatedStep::describeActions(DB::JSONBuilder::JSONMap & map)
 
 void GraceMergingAggregatedStep::updateOutputStream()
 {
-    output_stream = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params), getDataStreamTraits());
+    output_stream = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params, final), getDataStreamTraits());
 }
 
-GraceMergingAggregatedTransform::GraceMergingAggregatedTransform(const DB::Block &header_, DB::AggregatingTransformParamsPtr params_, DB::ContextPtr context_)
+GraceMergingAggregatedTransform::GraceMergingAggregatedTransform(const DB::Block &header_, DB::AggregatingTransformParamsPtr params_, DB::ContextPtr context_, bool final_)
     : IProcessor({header_}, {params_->getHeader()})
     , header(header_)
     , params(params_)
     , context(context_)
+    , key_columns(params_->params.keys_size)
+    , aggregate_columns(params_->params.aggregates_size)
+    , final(final_)
     , tmp_data_disk(std::make_unique<DB::TemporaryDataOnDisk>(context_->getTempDataOnDisk()))
 {
     max_buckets = context->getConfigRef().getUInt64("max_grace_aggregate_merging_buckets", 32);
@@ -270,7 +275,7 @@ void GraceMergingAggregatedTransform::rehashDataVariants()
 {
     auto before_memoery_usage = MemoryUtil::getCurrentMemoryUsage();
 
-    auto converter = currentDataVariantToBlockConverter(false);
+    auto converter = currentDataVariantToBlockConverter(!final);
     checkAndSetupCurrentDataVariants();
     size_t block_rows = 0;
     size_t block_memory_usage = 0;
@@ -297,7 +302,14 @@ void GraceMergingAggregatedTransform::rehashDataVariants()
             addBlockIntoFileBucket(i, scattered_blocks[i]);
             scattered_blocks[i] = {};
         }
-        params->aggregator.mergeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, no_more_keys);
+        if (final)
+        {
+            params->aggregator.mergeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, no_more_keys);
+        }
+        else
+        {
+            params->aggregator.executeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, key_columns, aggregate_columns, no_more_keys);
+        }
     }
     if (block_rows)
         per_key_memory_usage = block_memory_usage * 1.0 / block_rows;
@@ -488,7 +500,14 @@ void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block)
     /// so if the buckets number is not changed since it was scattered, we don't need to scatter it again.
     if (block.info.bucket_num == static_cast<Int32>(getBucketsNum()) || getBucketsNum() == 1)
     {
-        params->aggregator.mergeOnBlock(block, *current_data_variants, no_more_keys);
+        if (final)
+        {
+            params->aggregator.mergeOnBlock(block, *current_data_variants, no_more_keys);
+        }
+        else
+        {
+            params->aggregator.executeOnBlock(block, *current_data_variants, key_columns, aggregate_columns, no_more_keys);
+        }
     }
     else
     {
@@ -513,7 +532,14 @@ void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block)
         {
             addBlockIntoFileBucket(i, scattered_blocks[i]);
         }
-        params->aggregator.mergeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, no_more_keys);
+        if (final)
+        {
+            params->aggregator.mergeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, no_more_keys);
+        }
+        else
+        {
+            params->aggregator.executeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, key_columns, aggregate_columns, no_more_keys);
+        }
     }
 }
 
@@ -558,6 +584,6 @@ bool GraceMergingAggregatedTransform::isMemoryOverflow()
             return true;
         }
     }
-    return false;
+    return true;
 }
 }

@@ -789,6 +789,7 @@ case class ColumnarOverrideRules(session: SparkSession)
     ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules() :::
       List(
+        (_: SparkSession) => RemoveUnnecessaryHashAggregate(),
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => RewriteMultiChildrenCount,
         (_: SparkSession) => FallbackBloomFilterAggIfNeeded(),
