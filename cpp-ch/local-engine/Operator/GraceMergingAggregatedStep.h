@@ -41,7 +41,7 @@ public:
         DB::ContextPtr context_,
         const DB::DataStream & input_stream_,
         DB::Aggregator::Params params_,
-        bool final_);
+        bool no_pre_aggregated_);
     ~GraceMergingAggregatedStep() override = default;
 
     String getName() const override { return "GraceMergingAggregatedStep"; }
@@ -53,7 +53,7 @@ public:
 private:
     DB::ContextPtr context;
     DB::Aggregator::Params params;
-    bool final;
+    bool no_pre_aggregated;
     void updateOutputStream() override; 
 };
 
@@ -61,14 +61,14 @@ class GraceMergingAggregatedTransform : public DB::IProcessor
 {
 public:
     using Status = DB::IProcessor::Status;
-    explicit GraceMergingAggregatedTransform(const DB::Block &header_, DB::AggregatingTransformParamsPtr params_, DB::ContextPtr context_, bool final_);
+    explicit GraceMergingAggregatedTransform(const DB::Block &header_, DB::AggregatingTransformParamsPtr params_, DB::ContextPtr context_, bool no_pre_aggregated_);
     ~GraceMergingAggregatedTransform() override;
 
     Status prepare() override;
     void work() override;
     String getName() const override { return "GraceMergingAggregatedTransform"; }
 private:
-    bool final;
+    bool no_pre_aggregated;
     DB::Block header;
     DB::ColumnRawPtrs key_columns;
     DB::Aggregator::AggregateColumns aggregate_columns;
@@ -93,8 +93,14 @@ private:
 
     struct BufferFileStream
     {
-        std::list<DB::Block> blocks;
-        DB::TemporaryFileStream * file_stream = nullptr;
+        /// store the intermediate result blocks.
+        std::list<DB::Block> intermediate_blocks;
+        /// Only be used when there is no pre-aggregated step, store the original input blocks.
+        std::list<DB::Block> original_blocks;
+        /// store the intermediate result blocks.
+        DB::TemporaryFileStream * intermediate_file_stream = nullptr;
+        /// Only be used when there is no pre-aggregated step
+        DB::TemporaryFileStream * original_file_stream = nullptr;
         size_t pending_bytes = 0;
     };
     std::unordered_map<size_t, BufferFileStream> buckets;
@@ -104,7 +110,7 @@ private:
     void rehashDataVariants();
     DB::Blocks scatterBlock(const DB::Block & block);
     /// Add a block into a bucket, if the pending bytes reaches limit, flush it into disk.
-    void addBlockIntoFileBucket(size_t bucket_index, const DB::Block & block);
+    void addBlockIntoFileBucket(size_t bucket_index, const DB::Block & block, bool is_original_block);
     void flushBuckets();
     size_t flushBucket(size_t bucket_index);
     /// Load blocks from disk and merge them into a new hash table, make a new AggregateDataBlockConverter
@@ -114,7 +120,7 @@ private:
     std::unique_ptr<AggregateDataBlockConverter> currentDataVariantToBlockConverter(bool final);
     void checkAndSetupCurrentDataVariants();
     /// Merge one block into current_data_variants.
-    void mergeOneBlock(const DB::Block &block);
+    void mergeOneBlock(const DB::Block &block, bool is_original_block);
     bool isMemoryOverflow();
 
     bool input_finished = false;

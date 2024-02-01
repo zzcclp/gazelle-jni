@@ -240,7 +240,9 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     super.prepare()
     val context = generateWholeStageTransformContext()
     val json = substraitPlanJson
+    // scalastyle:off println
     if (json.contains("AGGREGATION_PHASE")) println(s"------$json")
+    // scalastyle:on println
     if (conf.getConf(GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT)) {
       wholeStageTransformerContext = Some(context)
     }

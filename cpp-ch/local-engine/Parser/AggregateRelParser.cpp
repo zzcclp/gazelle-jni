@@ -270,7 +270,7 @@ void AggregateRelParser::addMergingAggregatedStep()
     if (enable_streaming_aggregating)
     {
         params.group_by_two_level_threshold = settings.group_by_two_level_threshold;
-        auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentDataStream(), params, true);
+        auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentDataStream(), params, false);
         steps.emplace_back(merging_step.get());
         plan->addStep(std::move(merging_step));
     }
@@ -309,7 +309,7 @@ void AggregateRelParser::addCompleteModeAggregatedStep()
             PODArrayUtil::adjustMemoryEfficientSize(settings.max_block_size),
             settings.min_hit_rate_to_use_consecutive_keys_optimization);
         params.group_by_two_level_threshold = settings.group_by_two_level_threshold;
-        auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentDataStream(), params, false);
+        auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentDataStream(), params, true);
         steps.emplace_back(merging_step.get());
         plan->addStep(std::move(merging_step));
     }
