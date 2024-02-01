@@ -566,5 +566,17 @@ class GlutenClickHouseTPCHParquetBucketSuite
       df => {}
     )
   }
+
+  test("test merge aggregate") {
+    val SQL =
+      """
+        |select l_orderkey, collect_list(l_linenumber) as t
+        |from lineitem group by l_orderkey
+        |order by l_orderkey limit 100
+        |""".stripMargin
+    val df = spark.sql(SQL)
+    df.collect()
+    df.explain(false)
+  }
 }
 // scalastyle:on line.size.limit
