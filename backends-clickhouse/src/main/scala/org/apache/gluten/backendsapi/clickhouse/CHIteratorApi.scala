@@ -58,7 +58,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         }
         dataSchema += newField
     }
-    StructType(dataSchema)
+    StructType(dataSchema.toSeq)
   }
 
   // only set file schema for text format table
@@ -68,7 +68,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     if (scan.fileFormat == ReadFileFormat.TextReadFormat) {
       val names =
         ConverterUtils.collectAttributeNamesWithoutExprId(scan.outputAttributes())
-      localFilesNode.setFileSchema(getFileSchema(scan.getDataSchema, names.asScala))
+      localFilesNode.setFileSchema(getFileSchema(scan.getDataSchema, names.asScala.toSeq))
     }
   }
 

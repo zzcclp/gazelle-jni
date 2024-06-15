@@ -294,7 +294,7 @@ private[gluten] class GlutenSessionExtensions extends (SparkSessionExtensions =>
 }
 
 private[gluten] trait GlutenSparkExtensionsInjector {
-  def inject(extensions: SparkSessionExtensions)
+  def inject(extensions: SparkSessionExtensions): Unit
 }
 
 private[gluten] object GlutenPlugin {
