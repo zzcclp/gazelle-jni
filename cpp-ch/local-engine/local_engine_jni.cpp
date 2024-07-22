@@ -56,6 +56,7 @@
 #include <Common/ExceptionUtils.h>
 #include <Common/JNIUtils.h>
 #include <Common/QueryContext.h>
+#include <Storages/Cache/CacheManager.h>
 
 
 #ifdef __cplusplus
@@ -1293,6 +1294,21 @@ JNIEXPORT jlong Java_org_apache_gluten_memory_alloc_CHNativeMemoryAllocator_byte
     LOCAL_ENGINE_JNI_METHOD_START
     return local_engine::allocatorMemoryUsage(allocator_id);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
+JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * env, jstring table_, jstring columns_, jboolean async_)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    auto table_def = jstring2string(env, table_);
+    auto columns = jstring2string(env, columns_);
+    Poco::StringTokenizer tokenizer(columns, ",");
+    std::unordered_set<String> column_set;
+    for (const auto & col : tokenizer)
+    {
+        column_set.insert(col);
+    }
+    local_engine::CacheManager::instance().cacheParts(table_def, column_set, async_);
+    LOCAL_ENGINE_JNI_METHOD_END(env, );
 }
 
 #ifdef __cplusplus
