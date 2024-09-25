@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.utils
 
-import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.backendsapi.clickhouse.{CHBackendSettings, CHConf}
 import org.apache.gluten.execution.{GlutenMergeTreePartition, MergeTreePartRange, MergeTreePartSplit}
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.softaffinity.SoftAffinityManager
@@ -39,6 +39,7 @@ import org.apache.spark.sql.execution.datasources.clickhouse.{ExtensionTableBuil
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.types.BooleanType
+import org.apache.spark.util.SparkResourceUtil
 import org.apache.spark.util.collection.BitSet
 
 import com.fasterxml.jackson.core.`type`.TypeReference
@@ -114,6 +115,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       )
     } else {
       genInputPartitionSeq(
+        relation,
         engine,
         database,
         tableName,
@@ -135,6 +137,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
   }
 
   def genInputPartitionSeq(
+      relation: HadoopFsRelation,
       engine: String,
       database: String,
       tableName: String,
@@ -212,11 +215,26 @@ object MergeTreePartsPartitionsUtil extends Logging {
       return
     }
 
-    val maxSplitBytes = getMaxSplitBytes(sparkSession, selectRanges)
-    val total_marks = selectRanges.map(p => p.marks).sum
-    val total_Bytes = selectRanges.map(p => p.size).sum
-    // maxSplitBytes / (total_Bytes / total_marks) + 1
-    val markCntPerPartition = maxSplitBytes * total_marks / total_Bytes + 1
+    val maxSplitBytesConf = getMaxSplitBytes(sparkSession, selectRanges)
+    val openCostInBytesConf = sparkSession.sessionState.conf.filesOpenCostInBytes
+    val totalCores = SparkResourceUtil.getTotalCores(relation.sparkSession.sessionState.conf)
+    val fileCntThreshold = relation.sparkSession.sessionState.conf
+      .getConfString(
+        CHBackendSettings.GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD,
+        CHBackendSettings.GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD_DEFAULT
+      )
+      .toInt
+
+    val totalMarksThreshold = totalCores * fileCntThreshold
+    val totalMarks = selectRanges.map(p => p.marks).sum
+    val (markCntPerPartition, maxSplitBytes, openCostInBytes) =
+      if (fileCntThreshold > 0 && totalMarks <= totalMarksThreshold) {
+        (math.ceil((totalMarks * 1.0) / totalCores).toInt, 0, 0L)
+      } else {
+        val totalBytes = selectRanges.map(p => p.size).sum
+        // maxSplitBytes / (total_Bytes / total_marks) + 1
+        ((maxSplitBytesConf * totalMarks / totalBytes + 1).toInt, 1, openCostInBytesConf)
+      }
 
     logInfo(s"Planning scan with bin packing, max mark: $markCntPerPartition")
     val splitFiles = selectRanges
@@ -237,7 +255,6 @@ object MergeTreePartsPartitionsUtil extends Logging {
           }
       }
 
-    val openCostInBytes = sparkSession.sessionState.conf.filesOpenCostInBytes
     val (partNameWithLocation, locationDistinct) =
       calculatedLocationForSoftAffinity(splitFiles, relativeTablePath)
 

@@ -34,6 +34,9 @@ import java.io.File
 
 import scala.io.Source
 
+// Some sqls' line length exceeds 100
+// scalastyle:off line.size.limit
+
 class GlutenClickHouseMergeTreeWriteSuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
@@ -2051,4 +2054,112 @@ class GlutenClickHouseMergeTreeWriteSuite
          |""".stripMargin
     runSql(sqlStr) { _ => }
   }
+
+  test("test file count111") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_split;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_split
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |LOCATION '$basePath/lineitem_split'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_split
+                 | select * from lineitem
+                 |""".stripMargin)
+
+    withSQLConf(("spark.gluten.sql.columnar.backend.ch.files.per.partition.threshold", "-1")) {
+      val sql =
+        s"""
+           |select count(1), min(l_returnflag) from lineitem_split
+           |""".stripMargin
+      runSql(sql) {
+        df =>
+          val result = df.collect()
+          assertResult(1)(result.length)
+          assertResult("600572")(result(0).getLong(0).toString)
+          val scanExec = collect(df.queryExecution.executedPlan) {
+            case f: FileSourceScanExecTransformer => f
+          }
+          assert(scanExec(0).getPartitions.size == 3)
+      }
+    }
+    withSQLConf(("spark.gluten.sql.columnar.backend.ch.files.per.partition.threshold", "40")) {
+      val sql =
+        s"""
+           |select count(1), min(l_returnflag) from lineitem_split
+           |""".stripMargin
+      runSql(sql) {
+        df =>
+          val result = df.collect()
+          assertResult(1)(result.length)
+          assertResult("600572")(result(0).getLong(0).toString)
+          val scanExec = collect(df.queryExecution.executedPlan) {
+            case f: FileSourceScanExecTransformer => f
+          }
+          assert(scanExec(0).getPartitions.size == 3)
+      }
+    }
+    withSQLConf(("spark.gluten.sql.columnar.backend.ch.files.per.partition.threshold", "100")) {
+      val sql =
+        s"""
+           |select count(1), min(l_returnflag) from lineitem_split
+           |""".stripMargin
+      runSql(sql) {
+        df =>
+          val result = df.collect()
+          assertResult(1)(result.length)
+          assertResult("600572")(result(0).getLong(0).toString)
+          val scanExec = collect(df.queryExecution.executedPlan) {
+            case f: FileSourceScanExecTransformer => f
+          }
+          assert(scanExec(0).getPartitions.size == 1)
+      }
+    }
+
+    Seq(("true", 2), ("false", 3)).foreach(
+      conf => {
+        withSQLConf(
+          ("spark.gluten.sql.columnar.backend.ch.runtime_settings.enabled_driver_filter_mergetree_index" -> conf._1)) {
+          runTPCHQueryBySQL(6, "") {
+            df =>
+              val scanExec = collect(df.queryExecution.executedPlan) {
+                case f: FileSourceScanExecTransformer => f
+              }
+              assert(scanExec.size == 1)
+
+              val mergetreeScan = scanExec(0)
+              assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+
+              val plans = collect(df.queryExecution.executedPlan) {
+                case scanExec: BasicScanExecTransformer => scanExec
+              }
+              assert(plans.size == 1)
+              assert(plans(0).getSplitInfos.size == conf._2)
+          }
+        }
+      })
+  }
 }
+// scalastyle:off line.size.limit

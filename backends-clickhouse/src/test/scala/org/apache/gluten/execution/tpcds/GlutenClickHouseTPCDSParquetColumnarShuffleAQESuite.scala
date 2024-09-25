@@ -35,9 +35,6 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      // Currently, it can not support to read multiple partitioned file in one task.
-      //      .set("spark.sql.files.maxPartitionBytes", "134217728")
-      //      .set("spark.sql.files.openCostInBytes", "134217728")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.memory.offHeap.size", "4g")
   }
@@ -240,5 +237,56 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
         |""".stripMargin
     // There are some BroadcastHashJoin with NOT condition
     compareResultsAgainstVanillaSpark(sql, true, { df => })
+  }
+
+  test("test file count") {
+    withSQLConf(("spark.gluten.sql.columnar.backend.ch.files.per.partition.threshold", "-1")) {
+      val sql =
+        s"""
+           |select count(1) from store_sales
+           |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql,
+        true,
+        {
+          df =>
+            val scanExec = collect(df.queryExecution.executedPlan) {
+              case f: FileSourceScanExecTransformer => f
+            }
+            assert(scanExec(0).getPartitions.size == 8)
+        })
+    }
+    withSQLConf(("spark.gluten.sql.columnar.backend.ch.files.per.partition.threshold", "100")) {
+      val sql =
+        s"""
+           |select count(1) from store_sales
+           |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql,
+        true,
+        {
+          df =>
+            val scanExec = collect(df.queryExecution.executedPlan) {
+              case f: FileSourceScanExecTransformer => f
+            }
+            assert(scanExec(0).getPartitions.size == 8)
+        })
+    }
+    withSQLConf(("spark.gluten.sql.columnar.backend.ch.files.per.partition.threshold", "2000")) {
+      val sql =
+        s"""
+           |select count(1) from store_sales
+           |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql,
+        true,
+        {
+          df =>
+            val scanExec = collect(df.queryExecution.executedPlan) {
+              case f: FileSourceScanExecTransformer => f
+            }
+            assert(scanExec(0).getPartitions.size == 1)
+        })
+    }
   }
 }
